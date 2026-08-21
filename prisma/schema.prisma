@@ -1,0 +1,281 @@
+// Sistema de Chamados de Logistica - schema MVP
+// SQLite em dev (sem suporte nativo a enum), Postgres em producao.
+// Valores de enum sao validados na camada de aplicacao (src/lib/constants.ts).
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+// Perfil de acesso do usuário — cadastro dinâmico, ver model PerfilAcesso abaixo.
+model Usuario {
+  id                String   @id @default(cuid())
+  nome              String
+  email             String   @unique // Identificador de login — apesar do nome, pode ser nome, número ou e-mail, não precisa ter formato de e-mail.
+  senhaHash         String
+  perfil            String
+  ativo             Boolean  @default(true)
+  vePedidosDaEquipe Boolean  @default(false)
+  senhaProvisoria   Boolean  @default(false)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  pdvVinculos       UsuarioPdv[]
+  chamadosAbertos  Chamado[]       @relation("ChamadoAbertoPor")
+  chamadosAtendidos Chamado[]      @relation("ChamadoResponsavel")
+  mensagens        Mensagem[]
+  statusHistoricos StatusHistorico[]
+  anexos           Anexo[]
+  pdvsProximoOperador Pdv[]        @relation("PdvProximoOperador")
+  auditLogs        AuditLog[]
+}
+
+// Perfil de acesso — cadastro dinâmico e totalmente customizável pelo admin.
+// Cada perfil marca quais permissões tem. A visibilidade de chamados (antigo
+// campo único "escopoChamados") agora é derivada de veTodosChamados e
+// veChamadosPdvsVinculados — ver src/lib/constants.ts#derivarEscopoChamados.
+// Nenhuma das duas marcada cai no padrão: só os chamados que o usuário abriu.
+model PerfilAcesso {
+  id                       String   @id @default(cuid())
+  nome                     String   @unique
+  cor                      String
+  ordem                    Int      @default(0)
+  ativo                    Boolean  @default(true)
+  podeAbrirChamado         Boolean  @default(false)
+  podeAlterarStatus        Boolean  @default(false)
+  podeResponderChat        Boolean  @default(false)
+  podeCancelarReabrirProprio Boolean @default(false)
+  podeCancelarReabrirTodos Boolean  @default(false)
+  podeVerRelatorios        Boolean  @default(false)
+  podeGerenciarCadastros   Boolean  @default(false)
+  veTodosChamados          Boolean  @default(false)
+  veChamadosPdvsVinculados Boolean  @default(false)
+  createdAt                DateTime @default(now())
+}
+
+// PDV = unidade logística (loja e unidade de atendimento são a mesma coisa).
+model Pdv {
+  id                String   @id @default(cuid())
+  nome              String
+  codigo            String   @unique
+  ativo             Boolean  @default(true)
+  regraDistribuicao String   @default("FILA_ABERTA")
+  proximoOperadorId String?
+  createdAt         DateTime @default(now())
+
+  proximoOperador    Usuario?    @relation("PdvProximoOperador", fields: [proximoOperadorId], references: [id])
+  pedidos            Pedido[]
+  usuarioVinculos    UsuarioPdv[]
+  chamados           Chamado[]
+  feriados           Feriado[]
+  horarios           PdvHorario[]
+}
+
+model Feriado {
+  id        String   @id @default(cuid())
+  pdvId     String
+  data      DateTime
+  descricao String
+  createdAt DateTime @default(now())
+
+  pdv Pdv @relation(fields: [pdvId], references: [id], onDelete: Cascade)
+}
+
+// Horário de funcionamento por dia da semana (0=domingo..6=sábado), um registro por PDV+dia.
+model PdvHorario {
+  id            String  @id @default(cuid())
+  pdvId         String
+  diaSemana     Int
+  abre          Boolean @default(true)
+  horarioInicio String  @default("08:00")
+  horarioFim    String  @default("18:00")
+
+  pdv Pdv @relation(fields: [pdvId], references: [id], onDelete: Cascade)
+
+  @@unique([pdvId, diaSemana])
+}
+
+model UsuarioPdv {
+  id        String   @id @default(cuid())
+  usuarioId String
+  pdvId     String
+  createdAt DateTime @default(now())
+
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  pdv     Pdv     @relation(fields: [pdvId], references: [id], onDelete: Cascade)
+
+  @@unique([usuarioId, pdvId])
+}
+
+model Pedido {
+  id               String   @id @default(cuid())
+  numero           String   @unique
+  pdvId            String
+  nomeCliente      String
+  codigoRevendedor String
+  createdAt        DateTime @default(now())
+
+  pdv      Pdv       @relation(fields: [pdvId], references: [id])
+  chamados Chamado[]
+}
+
+model Servico {
+  id              String   @id @default(cuid())
+  nome            String
+  categoria       String
+  textoOrientacao String?
+  slaPresetId     String
+  ativo           Boolean  @default(true)
+  createdAt       DateTime @default(now())
+
+  slaPreset SlaPreset @relation(fields: [slaPresetId], references: [id])
+  chamados  Chamado[]
+}
+
+// Preset de prazo de SLA (nome + duração em horas ou dias) — cadastro dinâmico
+// com cor atribuída automaticamente na criação. Também representa a "prioridade"
+// do chamado (fundido com o antigo cadastro de Prioridade — um único registro
+// carrega nome, cor, duração e se é crítico). "critica" marca qual SLA conta
+// pro atalho "Críticos" do Monitoramento.
+model SlaPreset {
+  id        String   @id @default(cuid())
+  nome      String
+  duracao   Int
+  unidade   String // "HORAS" | "DIAS"
+  cor       String
+  critica   Boolean  @default(false)
+  ativo     Boolean  @default(true)
+  ordem     Int      @default(0)
+  createdAt DateTime @default(now())
+
+  servicos Servico[]
+  chamados Chamado[]
+}
+
+// Status do fluxo do chamado — cadastro dinâmico. Os 7 status originais têm
+// id fixo (igual ao valor histórico gravado em Chamado.status) e fixo=true
+// (não editáveis/excluíveis, pois têm lógica própria no código: ABERTO na
+// criação, FINALIZADO/CANCELADO encerram SLA e habilitam reabertura,
+// AGUARDANDO_SOLICITANTE tem retomada automática ao responder o chat).
+// Novos status criados pelo admin entram como opções adicionais no fluxo.
+model Status {
+  id        String   @id @default(cuid())
+  nome      String
+  cor       String
+  ativo     Boolean  @default(true)
+  ordem     Int      @default(0)
+  fixo      Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+// Singleton (1 linha fixa, id fixo "geral") — contador atômico do número sequencial do chamado
+model ChamadoContador {
+  id    String @id @default("geral")
+  valor Int    @default(0)
+}
+
+model Chamado {
+  id                    String    @id @default(cuid())
+  numero                Int       @unique
+  pedidoId              String
+  pdvId                 String
+  servicoId             String
+  motivoLivre           String
+  nomeSolicitante       String
+  abertoPorId           String
+  responsavelId         String?
+  status                String    @default("ABERTO")
+  slaPresetId            String
+  subMotivoFinalizacao   String?
+  prazoPrevisto          DateTime?
+  slaVencimentoEm        DateTime?
+  semOperadorNoMomento    Boolean   @default(false)
+  chamadoPaiId            String?
+  motivoReabertura        String?
+  createdAt               DateTime  @default(now())
+  updatedAt                DateTime  @updatedAt
+  finalizadoEm              DateTime?
+
+  pedido              Pedido              @relation(fields: [pedidoId], references: [id])
+  pdv                 Pdv                 @relation(fields: [pdvId], references: [id])
+  servico             Servico             @relation(fields: [servicoId], references: [id])
+  slaPreset           SlaPreset           @relation(fields: [slaPresetId], references: [id])
+  abertoPor           Usuario             @relation("ChamadoAbertoPor", fields: [abertoPorId], references: [id])
+  responsavel         Usuario?            @relation("ChamadoResponsavel", fields: [responsavelId], references: [id])
+  chamadoPai          Chamado?            @relation("ChamadoFilhos", fields: [chamadoPaiId], references: [id])
+  chamadosFilhos      Chamado[]           @relation("ChamadoFilhos")
+
+  anexos           Anexo[]
+  mensagens        Mensagem[]
+  statusHistoricos StatusHistorico[]
+}
+
+model Anexo {
+  id         String   @id @default(cuid())
+  chamadoId  String
+  mensagemId String?
+  autorId    String
+  tipo       String
+  nomeArquivo String
+  path       String
+  tamanho    Int
+  createdAt  DateTime @default(now())
+  apagadoEm  DateTime?
+
+  chamado  Chamado   @relation(fields: [chamadoId], references: [id], onDelete: Cascade)
+  mensagem Mensagem? @relation(fields: [mensagemId], references: [id], onDelete: Cascade)
+  autor    Usuario   @relation(fields: [autorId], references: [id])
+}
+
+model Mensagem {
+  id        String    @id @default(cuid())
+  chamadoId String
+  autorId   String
+  texto     String
+  lidoEm    DateTime?
+  createdAt DateTime  @default(now())
+  apagadaEm DateTime?
+
+  chamado Chamado @relation(fields: [chamadoId], references: [id], onDelete: Cascade)
+  autor   Usuario @relation(fields: [autorId], references: [id])
+  anexos  Anexo[]
+}
+
+model StatusHistorico {
+  id        String   @id @default(cuid())
+  chamadoId String
+  status    String
+  texto     String
+  usuarioId String
+  createdAt DateTime @default(now())
+
+  chamado Chamado @relation(fields: [chamadoId], references: [id], onDelete: Cascade)
+  usuario Usuario @relation(fields: [usuarioId], references: [id])
+}
+
+// Singleton (1 linha fixa, id fixo "geral") com regras globais configuráveis
+model ConfigGeral {
+  id                     String  @id @default("geral")
+  reaberturaPrazoDias    Int     @default(5)
+  reaberturaSomenteAdmin Boolean @default(false)
+  // Horas úteis antes do vencimento do SLA em que a linha do chamado passa a
+  // ficar amarela na listagem. Depois de vencido fica vermelha. Chamados
+  // finalizados/cancelados voltam à cor padrão (ver classificarAlertaVencimento).
+  alertaVencimentoHoras  Int     @default(4)
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  entidade   String
+  entidadeId String
+  acao       String
+  usuarioId  String
+  detalhes   String?
+  createdAt  DateTime @default(now())
+
+  usuario Usuario @relation(fields: [usuarioId], references: [id])
+}

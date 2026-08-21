@@ -1,0 +1,2 @@
+ALTER TABLE "Mensagem" ADD COLUMN "apagadaEm" DATETIME;
+ALTER TABLE "Anexo" ADD COLUMN "apagadoEm" DATETIME;
