@@ -9,7 +9,6 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
 // Perfil de acesso do usuário — cadastro dinâmico, ver model PerfilAcesso abaixo.
