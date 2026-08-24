@@ -1,5 +1,5 @@
 // Sistema de Chamados de Logistica - schema MVP
-// SQLite em dev (sem suporte nativo a enum), Postgres em producao.
+// Postgres em dev e producao.
 // Valores de enum sao validados na camada de aplicacao (src/lib/constants.ts).
 
 generator client {
@@ -8,7 +8,8 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 // Perfil de acesso do usuário — cadastro dinâmico, ver model PerfilAcesso abaixo.

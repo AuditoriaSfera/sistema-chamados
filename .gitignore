@@ -54,3 +54,6 @@ next-env.d.ts
 /prisma/dev.db-journal
 CREDENCIAIS_DEV.md
 /uploads
+
+# dump de dados reais migrados do SQLite (contém hashes de senha) — aplicar manualmente
+/prisma/dados-iniciais.sql

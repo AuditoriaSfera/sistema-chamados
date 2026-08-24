@@ -3,7 +3,11 @@ import path from "node:path";
 import crypto from "node:crypto";
 import { ANEXO_MAX_TAMANHO_BYTES, type TipoAnexo } from "@/lib/constants";
 
-export const UPLOADS_ROOT = path.join(process.cwd(), "uploads");
+// Em produção (Railway) aponte UPLOADS_ROOT para o mount do volume persistente,
+// ex.: /app/uploads. Sem volume, o filesystem é efêmero e os anexos somem a cada deploy.
+export const UPLOADS_ROOT = process.env.UPLOADS_ROOT
+  ? path.resolve(process.env.UPLOADS_ROOT)
+  : path.join(process.cwd(), "uploads");
 
 const MIME_TO_TIPO: Record<string, TipoAnexo> = {
   "image/jpeg": "IMAGEM",

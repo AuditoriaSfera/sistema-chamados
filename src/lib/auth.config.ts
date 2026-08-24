@@ -65,6 +65,8 @@ type AuthorizedUser = {
  * (roda em runtime restrito). O provider Credentials + Prisma entram só em auth.ts.
  */
 export const authConfig = {
+  // Railway roda atrás de proxy: sem trustHost o next-auth v5 recusa o host da request.
+  trustHost: true,
   session: { strategy: "jwt" },
   pages: { signIn: "/login" },
   providers: [],
