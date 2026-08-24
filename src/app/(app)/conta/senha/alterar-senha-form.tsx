@@ -4,7 +4,7 @@ import { useActionState, useEffect } from "react";
 import { signOut } from "next-auth/react";
 import { alterarPropriaSenha } from "../actions";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/password-input";
 import { Label } from "@/components/ui/label";
 
 export function AlterarSenhaForm() {
@@ -20,15 +20,15 @@ export function AlterarSenhaForm() {
     <form action={formAction} className="space-y-3">
       <div className="space-y-1.5">
         <Label htmlFor="senhaAtual">Senha atual</Label>
-        <Input id="senhaAtual" name="senhaAtual" type="password" required />
+        <PasswordInput id="senhaAtual" name="senhaAtual" required />
       </div>
       <div className="space-y-1.5">
         <Label htmlFor="novaSenha">Nova senha</Label>
-        <Input id="novaSenha" name="novaSenha" type="password" minLength={6} required />
+        <PasswordInput id="novaSenha" name="novaSenha" minLength={6} required />
       </div>
       <div className="space-y-1.5">
         <Label htmlFor="confirmarSenha">Confirmar nova senha</Label>
-        <Input id="confirmarSenha" name="confirmarSenha" type="password" minLength={6} required />
+        <PasswordInput id="confirmarSenha" name="confirmarSenha" minLength={6} required />
       </div>
       {state?.error && <p className="text-sm text-destructive">{state.error}</p>}
       <Button type="submit" disabled={pending}>

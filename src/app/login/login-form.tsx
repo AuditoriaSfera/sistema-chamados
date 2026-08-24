@@ -4,6 +4,7 @@ import { useActionState } from "react";
 import { loginAction } from "./actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/password-input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 
@@ -21,7 +22,7 @@ export function LoginForm({ callbackUrl }: { callbackUrl: string }) {
           </div>
           <div className="space-y-2">
             <Label htmlFor="senha">Senha</Label>
-            <Input id="senha" name="senha" type="password" required />
+            <PasswordInput id="senha" name="senha" required />
           </div>
           {state?.error && <p className="text-sm text-destructive">{state.error}</p>}
           <Button type="submit" className="w-full" disabled={pending}>
