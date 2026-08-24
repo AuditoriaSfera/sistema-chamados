@@ -16,7 +16,7 @@ o banco e os anexos seriam apagados a cada deploy.
 | Arquivo | Mudança |
 |---|---|
 | `package.json` | `build` agora é `prisma generate && next build`; adicionado `postinstall: prisma generate`. Trocado `@prisma/adapter-better-sqlite3` por `@prisma/adapter-pg` + `pg`; `dotenv` declarado explicitamente (era só transitivo e o `prisma.config.ts` depende dele) |
-| `prisma/schema.prisma` | `provider` de `sqlite` para `postgresql`, com `url = env("DATABASE_URL")` |
+| `prisma/schema.prisma` | `provider` de `sqlite` para `postgresql`. **Sem** `url` no bloco `datasource` — no Prisma 7 isso não é mais permitido; a URL vem do `prisma.config.ts`, que o projeto já tinha configurado |
 | `prisma/migrations/` | Migrations antigas de SQLite removidas (não rodam em Postgres). Nova baseline `20260824000000_init_postgres` |
 | `src/lib/db.ts` | Usa `PrismaPg` em vez de `PrismaBetterSqlite3`; falha explicitamente se `DATABASE_URL` não existir |
 | `prisma/seed.ts` | Mesmo ajuste de adapter |
@@ -36,28 +36,61 @@ Bônus: sair do `better-sqlite3` também remove uma compilação nativa (node-gy
   - `AUTH_SECRET` = `${{secret(64)}}` (gerado pelo próprio Railway)
   - `UPLOADS_ROOT` = `/app/uploads`
 - **Pre-deploy command**: `npx prisma migrate deploy` — cria as tabelas antes do app subir
+- **Domínio**: https://sistema-chamados-production-1257.up.railway.app
+- **Deploy verde**: migration aplicada, 17 tabelas criadas, `next start` no ar
 
-## O que falta você fazer
+## Correção aplicada depois do primeiro deploy
 
-### 1. Subir o código para o GitHub
+O primeiro build falhou com `P1012`: eu tinha adicionado `url = env("DATABASE_URL")` ao
+bloco `datasource` ao trocar o provider. No Prisma 7 essa propriedade foi removida do
+schema — a URL vive no `prisma.config.ts` (que este projeto já tinha) e o client recebe
+o `adapter`. O schema original também não tinha `url`; foi introdução minha.
 
-O Railway observa `AuditoriaSfera/sistema-chamados`. Esta pasta não é um repositório git,
-então copie os arquivos alterados para o seu clone e faça o push:
+Corrigido: o bloco `datasource` voltou a ter só o `provider`. Agora validado de verdade
+com `@prisma/prisma-schema-wasm` — `validate`, `get_config` e `get_dmmf` passam, e a
+contraprova (schema com `url`) reproduz exatamente o `P1012` que o Railway devolveu.
+
+## Bug encontrado depois: anexos gravados no Windows
+
+`saveAnexo` usava `path.join(chamadoId, storedName)`, que no Windows produz
+`chamadoId\arquivo.png`. No Linux do Railway esse valor não é subpasta + arquivo —
+é um nome de arquivo só, com uma barra invertida no meio. Os 11 anexos existentes
+quebrariam ao abrir, mesmo com os arquivos no volume.
+
+Corrigido em três frentes:
+
+- `saveAnexo` agora grava sempre com `/`, independente do sistema operacional
+- novo `resolveAnexoPath()` normaliza `\` para `/` ao ler, então os registros legados
+  continuam funcionando
+- de quebra, a checagem de path traversal virou `path.relative` em vez de
+  `startsWith` — a antiga deixava passar caminhos irmãos como `../uploads-secreto/x.png`,
+  o que importa mais agora que o app está exposto na internet
+
+Coberto por 7 testes novos em `src/lib/uploads-resolve.test.ts` (38 no total, todos passando).
+As asserções montam os caminhos com `path.join`, então a suíte roda igual no Windows e no Linux.
+Os caminhos em `dados-iniciais.sql` também já saem normalizados.
+
+## package-lock.json regenerado
+
+O `package-lock.json` tinha ficado para trás: ainda listava `@prisma/adapter-better-sqlite3`
+e não conhecia `pg`, `@types/pg` nem `dotenv`. Com `npm install` o Railway se vira
+(reconcilia o lock sozinho), mas com `npm ci` o build falharia — `npm ci` exige lock e
+`package.json` em sincronia. Rodei o install e o lock atualizado vai junto neste commit.
+
+## O que falta você fazer — nesta ordem
+
+### 1. Subir a correção dos anexos
 
 ```bash
-git add package.json .gitignore prisma/ src/lib/db.ts src/lib/uploads.ts src/lib/auth.config.ts
-git commit -m "Migra de SQLite para Postgres e corrige prisma generate no build"
+git add src/lib/uploads.ts src/lib/uploads-resolve.test.ts \
+        "src/app/api/anexos/[anexoId]/route.ts" subir-anexos.sh DEPLOY-RAILWAY.md
+git commit -m "Normaliza caminho de anexo para POSIX e reforca checagem de traversal"
 git push
 ```
 
-Atenção ao `git status`: as 8 migrations antigas de SQLite precisam aparecer como
-**deletadas**. Se ficarem no repo, o `migrate deploy` tenta rodá-las no Postgres e falha.
+### 2. Carregar os dados
 
-O push dispara o build automaticamente.
-
-### 2. Carregar os dados do dev.db
-
-Depois que o deploy passar (as tabelas já vão existir), rode **uma vez**:
+Depois que o deploy passar:
 
 ```bash
 DATABASE_URL="<DATABASE_PUBLIC_URL do Postgres no Railway>" node prisma/aplicar-dados.mjs
@@ -66,22 +99,59 @@ DATABASE_URL="<DATABASE_PUBLIC_URL do Postgres no Railway>" node prisma/aplicar-
 Pegue a `DATABASE_PUBLIC_URL` em: Railway → serviço Postgres → Variables.
 Use a **pública**, não a `.railway.internal` — essa só funciona de dentro da rede deles.
 
-O script é idempotente (`ON CONFLICT DO NOTHING`), rodar duas vezes não duplica nada.
+O script é idempotente (`ON CONFLICT DO NOTHING`) e imprime a contagem por tabela
+no final. O esperado é: Usuario 6, PerfilAcesso 4, Pdv 10, PdvHorario 70, UsuarioPdv 27,
+Pedido 5, SlaPreset 5, Servico 11, Status 7, Chamado 5, Mensagem 28, Anexo 11,
+StatusHistorico 17, AuditLog 66 — 274 registros no total.
 
-### 3. Gerar o domínio público
+### 3. Subir os arquivos dos 11 anexos
 
-Settings → Networking → **Generate Domain**. Não fiz isso porque você pode preferir
-um domínio próprio.
+A CLI do Railway envia arquivos direto para o volume. Rode da raiz do projeto,
+onde está a pasta `./uploads`:
+
+```bash
+npm i -g @railway/cli
+railway login
+railway link          # captivating-joy > production > sistema-chamados
+bash subir-anexos.sh
+```
+
+O `subir-anexos.sh` foi gerado com os 11 caminhos exatos lidos do `dev.db`
+(0,94 MB no total) e avisa se algum arquivo não existir localmente. Para conferir:
+
+```bash
+railway volume files list / -s sistema-chamados
+```
+
+Se preferir uma interface: `railway volume browse / -s sistema-chamados`.
+
+### 4. Criar sua conta de acesso total
+
+Pelo painel do Railway **não funciona**: `senhaHash` guarda um hash bcrypt (senha em
+texto puro nunca autentica), `updatedAt` não tem default no banco, `perfil` é o id do
+PerfilAcesso e o `id` precisa ser gerado. Use o script:
+
+```bash
+DATABASE_URL="<DATABASE_PUBLIC_URL>" npm run db:admin
+```
+
+Ele pede login, nome e senha (a senha é digitada oculta e não vai para o histórico do
+shell), reaproveita o perfil "Administrador" que já vem nos dados migrados e cria o
+usuário. Se o login já existir, redefine a senha e promove em vez de falhar — pode
+rodar de novo à vontade.
+
+Os 6 usuários migrados do dev continuam lá com as senhas antigas. Vale revisar:
+`Bruno Batista` (`bruno.batista`) já é Administrador, e há dois usuários de teste
+inativos (`12345` e `teste.senha@demo.local`).
 
 ## Pontos de atenção
 
-- **Anexos antigos não vieram.** A tabela `Anexo` tem 11 registros apontando para arquivos
-  que estavam em `./uploads` na sua máquina. Os metadados foram migrados, mas os arquivos
-  em si precisam ser copiados para o volume — ou esses 11 anexos vão dar erro ao abrir.
-- **A migration baseline foi escrita à mão** (o ambiente onde trabalhei não conseguia baixar
-  os engines do Prisma). Foi validada executando de verdade num Postgres: 17 tabelas,
-  22 foreign keys, 24 índices únicos, e os 274 registros entraram sem violar constraint
-  nenhuma. Ainda assim, se quiser a versão canônica gerada pelo Prisma, apague a pasta
+- **A migration baseline foi escrita à mão** (o ambiente onde trabalhei não baixa os
+  engines nativos do Prisma). Agora ela está conferida contra o datamodel real do Prisma,
+  extraído via `get_dmmf`: as 17 tabelas, todas as colunas, tipos SQL, nullability,
+  defaults, índices únicos, chaves primárias e as 22 foreign keys batem exatamente com o
+  que o Prisma espera. Os 274 registros também entram sem violar constraint nenhuma.
+  Se ainda assim quiser a versão canônica gerada pelo próprio Prisma, apague a pasta
   `20260824000000_init_postgres` e rode `npx prisma migrate dev --name init_postgres`
   contra um Postgres local antes do push.
 - **Não coloquei `NODE_ENV=production`** nas variáveis de propósito: isso faz o instalador

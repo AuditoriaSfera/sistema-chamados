@@ -4,7 +4,7 @@ import path from "node:path";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { canAccessChamado } from "@/lib/permissions";
-import { UPLOADS_ROOT } from "@/lib/uploads";
+import { resolveAnexoPath } from "@/lib/uploads";
 
 const CONTENT_TYPES: Record<string, string> = {
   PDF: "application/pdf",
@@ -36,8 +36,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ anexoId
     return NextResponse.json({ error: "Sem acesso." }, { status: 403 });
   }
 
-  const fullPath = path.join(UPLOADS_ROOT, anexo.path);
-  if (!fullPath.startsWith(UPLOADS_ROOT)) {
+  const fullPath = resolveAnexoPath(anexo.path);
+  if (!fullPath) {
     return NextResponse.json({ error: "Caminho inválido." }, { status: 400 });
   }
 

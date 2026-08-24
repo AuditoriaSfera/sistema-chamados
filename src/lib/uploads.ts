@@ -20,6 +20,22 @@ const MIME_TO_TIPO: Record<string, TipoAnexo> = {
   "video/webm": "VIDEO",
 };
 
+/**
+ * Resolve o caminho relativo gravado no banco para um caminho absoluto dentro
+ * de UPLOADS_ROOT, ou null se escapar da pasta.
+ *
+ * Normaliza "\\" para "/": anexos salvos em dev no Windows ficaram gravados como
+ * "chamadoId\\arquivo.png", e no Linux isso vira um único nome de arquivo em vez
+ * de subpasta + arquivo — o download quebra silenciosamente.
+ */
+export function resolveAnexoPath(relativePath: string): string | null {
+  const normalizado = relativePath.replace(/\\/g, "/");
+  const fullPath = path.resolve(UPLOADS_ROOT, normalizado);
+  const relativo = path.relative(UPLOADS_ROOT, fullPath);
+  if (relativo.startsWith("..") || path.isAbsolute(relativo)) return null;
+  return fullPath;
+}
+
 export function classifyAnexo(mimeType: string): TipoAnexo | null {
   return MIME_TO_TIPO[mimeType] ?? null;
 }
@@ -48,13 +64,13 @@ export async function saveAnexo(chamadoId: string, file: File) {
   return {
     tipo,
     nomeArquivo: file.name,
-    path: path.join(chamadoId, storedName),
+    path: `${chamadoId}/${storedName}`,
     tamanho: file.size,
   };
 }
 
 export async function deleteAnexoFile(relativePath: string) {
-  const fullPath = path.join(UPLOADS_ROOT, relativePath);
-  if (!fullPath.startsWith(UPLOADS_ROOT)) return;
+  const fullPath = resolveAnexoPath(relativePath);
+  if (!fullPath) return;
   await unlink(fullPath).catch(() => {});
 }

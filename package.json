@@ -10,7 +10,8 @@
     "test": "vitest run",
     "postinstall": "prisma generate",
     "db:import": "node prisma/aplicar-dados.mjs",
-    "db:migrate": "prisma migrate deploy"
+    "db:migrate": "prisma migrate deploy",
+    "db:admin": "node prisma/criar-admin.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",
