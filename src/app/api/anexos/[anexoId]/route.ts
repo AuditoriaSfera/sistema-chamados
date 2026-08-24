@@ -41,7 +41,19 @@ export async function GET(_req: Request, { params }: { params: Promise<{ anexoId
     return NextResponse.json({ error: "Caminho inválido." }, { status: 400 });
   }
 
-  const buffer = await readFile(fullPath);
+  // O registro pode existir sem o arquivo: anexos anteriores à migração para o
+  // Railway ficaram só no disco da máquina antiga. Sem esse catch, o readFile
+  // estoura ENOENT e a rota devolve 500 em vez de dizer o que houve.
+  let buffer: Buffer;
+  try {
+    buffer = await readFile(fullPath);
+  } catch (e) {
+    if ((e as NodeJS.ErrnoException).code === "ENOENT") {
+      return NextResponse.json({ error: "Arquivo indisponível." }, { status: 404 });
+    }
+    throw e;
+  }
+
   const ext = path.extname(anexo.nomeArquivo).toLowerCase();
   const contentType =
     CONTENT_TYPES[anexo.tipo] ?? EXT_CONTENT_TYPES[ext] ?? "application/octet-stream";

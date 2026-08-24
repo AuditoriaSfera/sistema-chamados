@@ -104,26 +104,36 @@ no final. O esperado é: Usuario 6, PerfilAcesso 4, Pdv 10, PdvHorario 70, Usuar
 Pedido 5, SlaPreset 5, Servico 11, Status 7, Chamado 5, Mensagem 28, Anexo 11,
 StatusHistorico 17, AuditLog 66 — 274 registros no total.
 
-### 3. Subir os arquivos dos 11 anexos
+### 3. Os arquivos dos 11 anexos ~~subir para o volume~~ se perderam
 
-A CLI do Railway envia arquivos direto para o volume. Rode da raiz do projeto,
-onde está a pasta `./uploads`:
+Os binários não estão mais na máquina de origem: varri o perfil inteiro do usuário e
+não existe pasta `uploads/` do projeto nem nenhum dos 11 arquivos (`7266ade3-…` e
+companhia). O `dev.db` trouxe os metadados; os arquivos em si, não. Rodar o
+`subir-anexos.sh` hoje só imprimiria "AUSENTE" nas 11 linhas.
+
+Como os registros da tabela `Anexo` fazem parte do histórico dos chamados — quem
+anexou o quê e quando —, eles **ficam no banco**. O que mudou foi o comportamento
+quando o arquivo não existe:
+
+- `GET /api/anexos/[id]` capturava nada e estourava `ENOENT` → **500**. Agora devolve
+  **404 "Arquivo indisponível."**
+- nas mensagens, a miniatura que falhava virava ícone de imagem quebrada. Agora o
+  `onError` troca por um bloco tracejado com o nome do arquivo, no mesmo estilo do
+  "Anexo apagado" que já existia
+
+Anexos novos, enviados pelo app em produção, gravam direto no volume e funcionam
+normalmente — o problema é só com esses 11 legados.
+
+**Se os arquivos reaparecerem** (backup, outra máquina), o `subir-anexos.sh` continua
+válido: coloque a pasta `uploads/` na raiz do projeto e rode
 
 ```bash
 npm i -g @railway/cli
 railway login
 railway link          # captivating-joy > production > sistema-chamados
 bash subir-anexos.sh
+railway volume files list / -s sistema-chamados   # conferir
 ```
-
-O `subir-anexos.sh` foi gerado com os 11 caminhos exatos lidos do `dev.db`
-(0,94 MB no total) e avisa se algum arquivo não existir localmente. Para conferir:
-
-```bash
-railway volume files list / -s sistema-chamados
-```
-
-Se preferir uma interface: `railway volume browse / -s sistema-chamados`.
 
 ### 4. Criar sua conta de acesso total
 

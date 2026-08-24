@@ -10,7 +10,7 @@ import { COLOR_PALETTE, corBadgeClasses, corDotClasses } from "@/lib/color-palet
 import { cn } from "@/lib/utils";
 import { ColorIcon } from "@/components/color-icon";
 import { AnexosField } from "@/components/anexos-field";
-import { MessageCircle, FileText, Video, MoreVertical, Download, Trash2 } from "lucide-react";
+import { MessageCircle, FileText, Video, MoreVertical, Download, Trash2, FileWarning } from "lucide-react";
 
 const PRAZO_APAGAR_MS = 60_000;
 
@@ -208,6 +208,7 @@ function AnexoPreview({
   const isImagem = anexo.tipo === "IMAGEM";
   const [menuAberto, setMenuAberto] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
+  const [indisponivel, setIndisponivel] = useState(false);
   const [, startTransition] = useTransition();
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -236,6 +237,21 @@ function AnexoPreview({
       <div className="flex w-56 items-center gap-2 rounded-lg border border-dashed p-2 text-xs italic text-muted-foreground">
         <Trash2 className="size-4 shrink-0" />
         Anexo apagado
+      </div>
+    );
+  }
+
+  // O registro sobrevive à perda do arquivo (anexos anteriores à migração para o
+  // Railway). Mostrar o nome num bloco neutro preserva o histórico do chamado sem
+  // oferecer um link que só devolve erro.
+  if (indisponivel) {
+    return (
+      <div
+        className="flex w-56 items-center gap-2 rounded-lg border border-dashed p-2 text-xs italic text-muted-foreground"
+        title={anexo.nomeArquivo}
+      >
+        <FileWarning className="size-4 shrink-0" />
+        <span className="flex-1 truncate">{anexo.nomeArquivo}</span>
       </div>
     );
   }
@@ -320,6 +336,7 @@ function AnexoPreview({
         <img
           src={`/api/anexos/${anexo.id}`}
           alt={anexo.nomeArquivo}
+          onError={() => setIndisponivel(true)}
           className="max-h-64 w-auto max-w-full rounded-lg border border-black/10 object-contain"
         />
       </a>
