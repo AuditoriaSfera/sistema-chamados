@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useActionState } from "react";
 import { loginAction } from "./actions";
 import { Button } from "@/components/ui/button";
@@ -17,7 +18,7 @@ export function LoginForm({ callbackUrl }: { callbackUrl: string }) {
         <form action={formAction} className="space-y-4">
           <input type="hidden" name="callbackUrl" value={callbackUrl} />
           <div className="space-y-2">
-            <Label htmlFor="email">Usuário</Label>
+            <Label htmlFor="email">Usuário ou e-mail</Label>
             <Input id="email" name="email" type="text" required autoFocus />
           </div>
           <div className="space-y-2">
@@ -28,6 +29,14 @@ export function LoginForm({ callbackUrl }: { callbackUrl: string }) {
           <Button type="submit" className="w-full" disabled={pending}>
             {pending ? "Entrando..." : "Entrar"}
           </Button>
+          <p className="text-center text-sm">
+            <Link
+              href="/esqueci-senha"
+              className="text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+            >
+              Esqueci minha senha
+            </Link>
+          </p>
         </form>
       </CardContent>
     </Card>

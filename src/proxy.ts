@@ -7,14 +7,19 @@ const { auth } = NextAuth(authConfig);
 export default auth((req) => {
   const isLoggedIn = !!req.auth;
   const isLoginPage = req.nextUrl.pathname.startsWith("/login");
+  // recuperação de senha precisa funcionar justamente para quem não consegue entrar
+  const isRecuperacao =
+    req.nextUrl.pathname.startsWith("/esqueci-senha") ||
+    req.nextUrl.pathname.startsWith("/redefinir-senha");
+  const isPublica = isLoginPage || isRecuperacao;
 
-  if (!isLoggedIn && !isLoginPage) {
+  if (!isLoggedIn && !isPublica) {
     const loginUrl = new URL("/login", req.nextUrl.origin);
     loginUrl.searchParams.set("callbackUrl", req.nextUrl.pathname + req.nextUrl.search);
     return NextResponse.redirect(loginUrl);
   }
 
-  if (isLoggedIn && isLoginPage) {
+  if (isLoggedIn && isPublica) {
     return NextResponse.redirect(new URL("/tickets", req.nextUrl.origin));
   }
 

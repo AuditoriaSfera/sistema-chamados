@@ -18,8 +18,16 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         const senha = credentials?.senha as string | undefined;
         if (!email || !senha) return null;
 
-        const usuario = await prisma.usuario.findUnique({
-          where: { email },
+        // aceita o identificador de login ou o e-mail de contato, sem
+        // diferenciar maiúsculas de minúsculas
+        const ident = email.trim();
+        const usuario = await prisma.usuario.findFirst({
+          where: {
+            OR: [
+              { email: { equals: ident, mode: "insensitive" } },
+              { emailContato: { equals: ident, mode: "insensitive" } },
+            ],
+          },
           include: { pdvVinculos: true },
         });
         if (!usuario || !usuario.ativo) return null;

@@ -21,6 +21,11 @@ model Usuario {
   ativo             Boolean  @default(true)
   vePedidosDaEquipe Boolean  @default(false)
   senhaProvisoria   Boolean  @default(false)
+  // Endereco de e-mail real, usado para recuperacao de senha e como forma
+  // alternativa de login. Opcional na base porque os usuarios criados antes
+  // desta migration nao tinham o campo — os formularios passaram a exigir.
+  emailContato      String?  @unique
+  telefone          String?
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
@@ -32,6 +37,23 @@ model Usuario {
   anexos           Anexo[]
   pdvsProximoOperador Pdv[]        @relation("PdvProximoOperador")
   auditLogs        AuditLog[]
+  tokensSenha      TokenSenha[]
+}
+
+// Token de redefinicao de senha ("esqueci minha senha").
+// Guardamos apenas o SHA-256 do token — quem ler o banco nao consegue montar
+// um link valido. Uso unico (usadoEm) e validade curta (expiraEm).
+model TokenSenha {
+  id        String    @id @default(cuid())
+  usuarioId String
+  tokenHash String    @unique
+  expiraEm  DateTime
+  usadoEm   DateTime?
+  createdAt DateTime  @default(now())
+
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@index([usuarioId])
 }
 
 // Perfil de acesso — cadastro dinâmico e totalmente customizável pelo admin.

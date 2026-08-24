@@ -7,9 +7,25 @@ import { z } from "zod";
 import bcrypt from "bcryptjs";
 import { logAudit } from "@/lib/audit";
 
+// Telefone: aceita formatos brasileiros comuns, com ou sem máscara.
+const telefoneSchema = z
+  .string()
+  .min(1, "Informe o telefone de contato.")
+  .refine((v) => v.replace(/\D/g, "").length >= 10, {
+    message: "Telefone incompleto — inclua o DDD.",
+  });
+
+const emailContatoSchema = z
+  .string()
+  .min(1, "Informe o e-mail de contato.")
+  .email("E-mail de contato inválido.")
+  .transform((v) => v.trim().toLowerCase());
+
 const usuarioSchema = z.object({
   nome: z.string().min(1),
   email: z.string().min(1),
+  emailContato: emailContatoSchema,
+  telefone: telefoneSchema,
   senha: z.string().min(6),
   perfil: z.string().min(1),
 });
@@ -22,22 +38,39 @@ export async function createUsuario(
   const parsed = usuarioSchema.safeParse({
     nome: formData.get("nome"),
     email: formData.get("email"),
+    emailContato: formData.get("emailContato"),
+    telefone: formData.get("telefone"),
     senha: formData.get("senha"),
     perfil: formData.get("perfil"),
   });
-  if (!parsed.success) return { error: "Verifique os campos (senha mínima de 6 caracteres)." };
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Verifique os campos (senha mínima de 6 caracteres)." };
+  }
 
   const perfilValido = await prisma.perfilAcesso.findUnique({ where: { id: parsed.data.perfil } });
   if (!perfilValido) return { error: "Perfil inválido." };
 
-  const exists = await prisma.usuario.findUnique({ where: { email: parsed.data.email } });
-  if (exists) return { error: "Usuário já cadastrado." };
+  // o login e o e-mail entram no mesmo campo na tela de login, então nenhum dos
+  // dois pode colidir com o do outro usuário
+  const exists = await prisma.usuario.findFirst({
+    where: {
+      OR: [
+        { email: { equals: parsed.data.email, mode: "insensitive" } },
+        { email: { equals: parsed.data.emailContato, mode: "insensitive" } },
+        { emailContato: { equals: parsed.data.email, mode: "insensitive" } },
+        { emailContato: { equals: parsed.data.emailContato, mode: "insensitive" } },
+      ],
+    },
+  });
+  if (exists) return { error: "Já existe usuário com esse login ou e-mail." };
 
   const senhaHash = await bcrypt.hash(parsed.data.senha, 10);
   const usuario = await prisma.usuario.create({
     data: {
       nome: parsed.data.nome,
       email: parsed.data.email,
+      emailContato: parsed.data.emailContato,
+      telefone: parsed.data.telefone,
       senhaHash,
       perfil: parsed.data.perfil,
       senhaProvisoria: true,
@@ -63,6 +96,8 @@ export async function toggleUsuarioAtivo(usuarioId: string, ativo: boolean) {
 const usuarioUpdateSchema = z.object({
   nome: z.string().min(1),
   email: z.string().min(1),
+  emailContato: emailContatoSchema,
+  telefone: telefoneSchema,
   perfil: z.string().min(1),
   senha: z.union([z.string().min(6), z.literal("")]).optional(),
 });
@@ -76,24 +111,47 @@ export async function updateUsuario(
   const parsed = usuarioUpdateSchema.safeParse({
     nome: formData.get("nome"),
     email: formData.get("email"),
+    emailContato: formData.get("emailContato"),
+    telefone: formData.get("telefone"),
     perfil: formData.get("perfil"),
     senha: formData.get("senha") || undefined,
   });
   if (!parsed.success) {
-    return { error: "Verifique os campos (a nova senha, se preenchida, precisa de 6+ caracteres)." };
+    return {
+      error:
+        parsed.error.issues[0]?.message ??
+        "Verifique os campos (a nova senha, se preenchida, precisa de 6+ caracteres).",
+    };
   }
 
   const perfilValido = await prisma.perfilAcesso.findUnique({ where: { id: parsed.data.perfil } });
   if (!perfilValido) return { error: "Perfil inválido." };
 
   const existe = await prisma.usuario.findFirst({
-    where: { email: parsed.data.email, NOT: { id: usuarioId } },
+    where: {
+      NOT: { id: usuarioId },
+      OR: [
+        { email: { equals: parsed.data.email, mode: "insensitive" } },
+        { email: { equals: parsed.data.emailContato, mode: "insensitive" } },
+        { emailContato: { equals: parsed.data.email, mode: "insensitive" } },
+        { emailContato: { equals: parsed.data.emailContato, mode: "insensitive" } },
+      ],
+    },
   });
-  if (existe) return { error: "Usuário já cadastrado." };
+  if (existe) return { error: "Já existe usuário com esse login ou e-mail." };
 
-  const data: { nome: string; email: string; perfil: string; senhaHash?: string } = {
+  const data: {
+    nome: string;
+    email: string;
+    emailContato: string;
+    telefone: string;
+    perfil: string;
+    senhaHash?: string;
+  } = {
     nome: parsed.data.nome,
     email: parsed.data.email,
+    emailContato: parsed.data.emailContato,
+    telefone: parsed.data.telefone,
     perfil: parsed.data.perfil,
   };
   if (parsed.data.senha) data.senhaHash = await bcrypt.hash(parsed.data.senha, 10);

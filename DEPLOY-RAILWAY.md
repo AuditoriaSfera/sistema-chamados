@@ -22,7 +22,8 @@ o banco e os anexos seriam apagados a cada deploy.
 | `prisma/seed.ts` | Mesmo ajuste de adapter |
 | `src/lib/uploads.ts` | `UPLOADS_ROOT` agora vem do ambiente (aponta pro volume), com fallback pro comportamento antigo em dev |
 | `src/lib/auth.config.ts` | `trustHost: true` — sem isso o next-auth v5 recusa o host atrás do proxy do Railway |
-| `prisma/dados-iniciais.sql` | Seus 274 registros do `dev.db` convertidos para Postgres (gitignorado, contém hashes de senha) |
+| `prisma/dados-iniciais.sql` | Configuração inicial de produção extraída do `dev.db`: cadastros + o usuário Bruno Batista, 120 registros (gitignorado, contém hash de senha) |
+| `prisma/criar-admin.mjs` | Cria ou promove um usuário com acesso total, pedindo a senha de forma oculta |
 | `prisma/aplicar-dados.mjs` | Script que carrega o SQL acima no Postgres |
 
 Bônus: sair do `better-sqlite3` também remove uma compilação nativa (node-gyp) do build.
@@ -50,7 +51,11 @@ Corrigido: o bloco `datasource` voltou a ter só o `provider`. Agora validado de
 com `@prisma/prisma-schema-wasm` — `validate`, `get_config` e `get_dmmf` passam, e a
 contraprova (schema com `url`) reproduz exatamente o `P1012` que o Railway devolveu.
 
-## Bug encontrado depois: anexos gravados no Windows
+## Bug corrigido: anexos gravados no Windows
+
+(Os 11 anexos de teste acabaram ficando de fora da carga, mas a correção vale para
+todos os anexos criados daqui pra frente.)
+
 
 `saveAnexo` usava `path.join(chamadoId, storedName)`, que no Windows produz
 `chamadoId\arquivo.png`. No Linux do Railway esse valor não é subpasta + arquivo —
@@ -77,82 +82,137 @@ e não conhecia `pg`, `@types/pg` nem `dotenv`. Com `npm install` o Railway se v
 (reconcilia o lock sozinho), mas com `npm ci` o build falharia — `npm ci` exige lock e
 `package.json` em sincronia. Rodei o install e o lock atualizado vai junto neste commit.
 
-## O que falta você fazer — nesta ordem
+## Decisão sobre os dados de teste
 
-### 1. Subir a correção dos anexos
+A carga inicial leva **só os cadastros + o usuário Bruno Batista** (120 registros).
+Ficaram de fora os 5 chamados de teste, com seus pedidos, mensagens, anexos, histórico
+de status e 66 registros de auditoria — e também os outros 5 usuários (`Operador Demo`,
+`Solicitante Demo`, `Gestor Demo`, `Teste Duplicado`, `Teste Senha`).
 
-```bash
-git add src/lib/uploads.ts src/lib/uploads-resolve.test.ts \
-        "src/app/api/anexos/[anexoId]/route.ts" subir-anexos.sh DEPLOY-RAILWAY.md
-git commit -m "Normaliza caminho de anexo para POSIX e reforca checagem de traversal"
-git push
-```
+O contador de chamados foi zerado junto, então o primeiro chamado aberto em produção
+será o **#1** e não o #6.
 
-### 2. Carregar os dados
+Como nada disso chegou a ser carregado no Postgres, não foi preciso apagar nada: os
+registros simplesmente não entram. Se um dia quiser os dados de teste de volta, é só
+regerar o `dados-iniciais.sql` a partir do `dev.db`.
 
-Depois que o deploy passar:
+## O que falta você fazer — tudo pelo navegador
 
-```bash
-DATABASE_URL="<DATABASE_PUBLIC_URL do Postgres no Railway>" node prisma/aplicar-dados.mjs
-```
+Não precisa de Node, terminal local nem da DATABASE_URL. O **Console** do serviço
+`sistema-chamados` no Railway é um shell dentro do container, rodando como root em
+`/app`, com `DATABASE_URL` já no ambiente e `bcryptjs`/`pg` instalados.
 
-Pegue a `DATABASE_PUBLIC_URL` em: Railway → serviço Postgres → Variables.
-Use a **pública**, não a `.railway.internal` — essa só funciona de dentro da rede deles.
+### 1. Enviar dois arquivos
 
-O script é idempotente (`ON CONFLICT DO NOTHING`) e imprime a contagem por tabela
-no final. O esperado é: Usuario 6, PerfilAcesso 4, Pdv 10, PdvHorario 70, UsuarioPdv 27,
-Pedido 5, SlaPreset 5, Servico 11, Status 7, Chamado 5, Mensagem 28, Anexo 11,
-StatusHistorico 17, AuditLog 66 — 274 registros no total.
+No Railway → serviço **sistema-chamados** → aba **Console** → painel **Files**
+(rodapé) → botão **Upload**. Entre na pasta `prisma/` e envie:
 
-### 3. Os arquivos dos 11 anexos ~~subir para o volume~~ se perderam
+- `prisma/dados-iniciais.sql`
+- `prisma/criar-admin.mjs` (a versão nova, que pergunta o perfil)
 
-Os binários não estão mais na máquina de origem: varri o perfil inteiro do usuário e
-não existe pasta `uploads/` do projeto nem nenhum dos 11 arquivos (`7266ade3-…` e
-companhia). O `dev.db` trouxe os metadados; os arquivos em si, não. Rodar o
-`subir-anexos.sh` hoje só imprimiria "AUSENTE" nas 11 linhas.
+O `dados-iniciais.sql` não vem no repositório de propósito — contém o hash de senha
+do Bruno. Enviar por aqui mantém isso fora do GitHub. Os dois arquivos somem no
+próximo deploy, o que é ótimo: são de uso único.
 
-Como os registros da tabela `Anexo` fazem parte do histórico dos chamados — quem
-anexou o quê e quando —, eles **ficam no banco**. O que mudou foi o comportamento
-quando o arquivo não existe:
+### 2. Carregar a configuração inicial
 
-- `GET /api/anexos/[id]` capturava nada e estourava `ENOENT` → **500**. Agora devolve
-  **404 "Arquivo indisponível."**
-- nas mensagens, a miniatura que falhava virava ícone de imagem quebrada. Agora o
-  `onError` troca por um bloco tracejado com o nome do arquivo, no mesmo estilo do
-  "Anexo apagado" que já existia
-
-Anexos novos, enviados pelo app em produção, gravam direto no volume e funcionam
-normalmente — o problema é só com esses 11 legados.
-
-**Se os arquivos reaparecerem** (backup, outra máquina), o `subir-anexos.sh` continua
-válido: coloque a pasta `uploads/` na raiz do projeto e rode
+No Console:
 
 ```bash
-npm i -g @railway/cli
-railway login
-railway link          # captivating-joy > production > sistema-chamados
-bash subir-anexos.sh
-railway volume files list / -s sistema-chamados   # conferir
+node prisma/aplicar-dados.mjs
 ```
 
-### 4. Criar sua conta de acesso total
+Vai imprimir a contagem por tabela. Esperado: PerfilAcesso 4, Usuario 1, Pdv 10,
+PdvHorario 70, UsuarioPdv 10, SlaPreset 5, Servico 11, Status 7, ChamadoContador 1,
+ConfigGeral 1 — **120 registros**. Chamado, Pedido, Mensagem, Anexo, StatusHistorico
+e AuditLog ficam vazios de propósito.
 
-Pelo painel do Railway **não funciona**: `senhaHash` guarda um hash bcrypt (senha em
-texto puro nunca autentica), `updatedAt` não tem default no banco, `perfil` é o id do
-PerfilAcesso e o `id` precisa ser gerado. Use o script:
+### 3. Definir a senha do Bruno
 
 ```bash
-DATABASE_URL="<DATABASE_PUBLIC_URL>" npm run db:admin
+node prisma/criar-admin.mjs
 ```
 
-Ele pede login, nome e senha (a senha é digitada oculta e não vai para o histórico do
-shell), reaproveita o perfil "Administrador" que já vem nos dados migrados e cria o
-usuário. Se o login já existir, redefine a senha e promove em vez de falhar — pode
-rodar de novo à vontade.
+Escolha o perfil **Administrador**, informe `bruno.batista` como login e digite a
+senha. Ele detecta que o usuário já existe e só redefine.
 
-Os 6 usuários migrados do dev continuam lá com as senhas antigas. Vale revisar:
-`Bruno Batista` (`bruno.batista`) já é Administrador, e há dois usuários de teste
-inativos (`12345` e `teste.senha@demo.local`).
+### 4. Criar o Leonardo
+
+Rode o mesmo comando de novo:
+
+```bash
+node prisma/criar-admin.mjs
+```
+
+- Perfil: o que ele precisar (Administrador para acesso total)
+- Login: `leonardo.sobral@sferamultifranquias.com`
+- Nome: `Leonardo Sobral`
+- Senha: uma temporária
+- Senha provisória: **S**
+
+Com a senha provisória marcada, o `proxy.ts` bloqueia o Leonardo em `/conta/senha`
+até ele escolher a própria senha — assim ninguém além dele conhece a senha final.
+
+Daqui pra frente, dá para criar os outros usuários pela própria tela
+**Cadastros → Usuários**, que já faz isso e ainda registra na auditoria.
+
+## Recuperação de senha, e-mail e telefone
+
+### O que entrou
+
+| Onde | Mudança |
+|---|---|
+| `prisma/schema.prisma` | `Usuario.emailContato` (único) e `Usuario.telefone`; nova tabela `TokenSenha` |
+| `prisma/migrations/20260824210000_recuperacao_senha/` | Migration correspondente |
+| `src/lib/email.ts` | Envio pelo Microsoft Graph (client credentials + sendMail) |
+| `src/lib/senha-reset.ts` | Geração, validação e consumo do token |
+| `src/app/esqueci-senha/` | Tela de pedido do link |
+| `src/app/redefinir-senha/[token]/` | Tela de escolha da nova senha |
+| `src/lib/auth.ts` | Login aceita o identificador **ou** o e-mail, sem diferenciar maiúsculas |
+| `src/proxy.ts` | As duas telas novas são públicas |
+| Cadastro de usuários | E-mail e telefone obrigatórios na criação e na edição |
+
+### Decisões de segurança
+
+- O token tem 32 bytes aleatórios e vai para o banco **só como SHA-256**. Quem ler a
+  tabela não consegue montar um link válido.
+- Uso único, garantido no `UPDATE ... WHERE usadoEm IS NULL` — dois pedidos simultâneos
+  com o mesmo token, só um vence.
+- Validade de 1 hora. Pedir um link novo invalida o anterior. Trocar a senha derruba
+  todos os pendentes.
+- A tela responde sempre a mesma mensagem, exista ou não a conta — senão viraria um
+  detector de usuários válidos.
+- O nome do usuário vai escapado no corpo HTML do e-mail.
+
+### Falta para o e-mail funcionar
+
+Cadastrei no Railway o que não é segredo:
+
+- `GRAPH_TENANT_ID` = `d2d6d993-2722-4b90-a743-e3943e6476e1`
+- `EMAIL_REMETENTE` = `no-reply@sferamultifranquias.com`
+
+Faltam duas, que dependem de você:
+
+- `GRAPH_CLIENT_ID` — o **Application (client) ID** do App Registration. O
+  `16846ce3-526e-40df-a65d-ad176f075f70` que você passou é o *Object ID*, que é outro
+  campo: no Azure, os dois aparecem lado a lado na tela Overview do App Registration.
+- `GRAPH_CLIENT_SECRET` — gere em Certificates & secrets e cadastre direto no Railway.
+
+No App Registration ainda é preciso conceder a permissão **de aplicativo** (não
+delegada) `Mail.Send` do Microsoft Graph, com consentimento do administrador. Vale
+também criar uma `ApplicationAccessPolicy` restringindo o app à caixa `no-reply@`,
+para que um vazamento do secret não permita enviar por qualquer caixa do tenant.
+
+**Enquanto as duas variáveis não existirem**, o envio entra em modo de teste: nada sai
+e o link aparece no log do Railway. Dá para validar o fluxo inteiro assim, mas não
+serve para produção — o link de redefinição fica visível para quem lê o log.
+
+### Uma ressalva sobre os campos obrigatórios
+
+As colunas ficaram opcionais no banco, porque o Bruno já existia sem elas — uma coluna
+`NOT NULL` sem valor padrão não entra numa tabela com linhas. A obrigatoriedade está nos
+formulários. Na prática: o Bruno só consegue usar o "esqueci minha senha" depois que
+alguém editar o cadastro dele e preencher o e-mail.
 
 ## Pontos de atenção
 

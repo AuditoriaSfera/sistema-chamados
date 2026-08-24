@@ -45,6 +45,22 @@ export function UsuarioCreateForm({
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1.5">
+          <Label htmlFor="emailContato">E-mail de contato</Label>
+          <Input
+            id="emailContato"
+            name="emailContato"
+            type="email"
+            placeholder="nome@sferamultifranquias.com"
+            required
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="telefone">Telefone de contato</Label>
+          <Input id="telefone" name="telefone" type="tel" placeholder="(11) 91234-5678" required />
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-1.5">
           <Label htmlFor="senha">Senha inicial</Label>
           <Input id="senha" name="senha" type="password" minLength={6} required />
         </div>
@@ -74,6 +90,7 @@ export function UsuarioCreateForm({
       </Button>
       {state?.error && <p className="text-sm text-destructive">{state.error}</p>}
       <p className="text-xs text-muted-foreground">
+        O e-mail de contato serve para recuperar a senha e também funciona como login.
         O usuário precisará trocar essa senha no primeiro acesso. Vínculo com PDV(s) e
         visibilidade de chamados da equipe são configurados depois, na página de detalhe do
         usuário.
