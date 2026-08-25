@@ -20,7 +20,9 @@ function PasswordInput({ className, ...props }: React.ComponentProps<"input">) {
       <Input
         {...props}
         type={visivel ? "text" : "password"}
-        className={cn("pr-9", className)}
+        // O Edge injeta o próprio botão de revelar senha (::-ms-reveal) em
+        // campos type="password"; sem escondê-lo aparecem dois olhos lado a lado.
+        className={cn("pr-9 [&::-ms-reveal]:hidden [&::-ms-clear]:hidden", className)}
       />
       <button
         type="button"
