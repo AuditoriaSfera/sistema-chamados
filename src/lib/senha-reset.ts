@@ -2,6 +2,7 @@ import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db";
 import { enviarEmail, escapeHtml } from "@/lib/email";
+import { appUrl } from "@/lib/app-url";
 
 /** Quanto tempo o link de redefinição continua valendo. */
 export const VALIDADE_MINUTOS = 60;
@@ -93,10 +94,10 @@ export async function redefinirSenha(token: string, novaSenha: string): Promise<
 export async function enviarEmailRecuperacao(
   destinatario: string,
   nome: string,
-  token: string,
-  origem: string
+  token: string
 ) {
-  const link = `${origem}/redefinir-senha/${token}`;
+  // A origem vem do ambiente, nunca de quem chamou — ver o comentário em app-url.ts.
+  const link = `${appUrl()}/redefinir-senha/${token}`;
   const assunto = "Redefinição de senha — Sistema de Chamados";
   const corpoTexto =
     `Olá, ${nome}.\n\n` +

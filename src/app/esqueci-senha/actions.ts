@@ -1,6 +1,5 @@
 "use server";
 
-import { headers } from "next/headers";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { gerarToken, enviarEmailRecuperacao } from "@/lib/senha-reset";
@@ -32,10 +31,7 @@ export async function pedirRecuperacao(
   if (usuario?.emailContato) {
     try {
       const token = await gerarToken(usuario.id);
-      const h = await headers();
-      const proto = h.get("x-forwarded-proto") ?? "https";
-      const host = h.get("host");
-      await enviarEmailRecuperacao(usuario.emailContato, usuario.nome, token, `${proto}://${host}`);
+      await enviarEmailRecuperacao(usuario.emailContato, usuario.nome, token);
     } catch (e) {
       // falha de envio também não pode vazar se a conta existe
       console.error("[esqueci-senha] falha ao enviar:", e instanceof Error ? e.message : e);
