@@ -41,6 +41,8 @@ declare module "@auth/core/jwt" {
     podeGerenciarCadastros: boolean;
     escopoChamados: EscopoChamados;
     senhaProvisoria: boolean;
+    /** Momento da última conferência contra o banco — ver o callback jwt em auth.ts. */
+    revalidadoEm: number;
   }
 }
 
@@ -89,6 +91,7 @@ export const authConfig = {
         token.podeGerenciarCadastros = u.podeGerenciarCadastros;
         token.escopoChamados = u.escopoChamados;
         token.senhaProvisoria = u.senhaProvisoria;
+        token.revalidadoEm = Date.now();
       }
       return token;
     },
