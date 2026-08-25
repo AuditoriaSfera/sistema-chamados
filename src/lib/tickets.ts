@@ -141,10 +141,25 @@ async function buildPdvCalendar(pdvId: string, from: Date): Promise<PdvCalendar 
 
   const horarios = await prisma.pdvHorario.findMany({ where: { pdvId } });
 
-  const limiteFeriados = new Date(from);
-  limiteFeriados.setDate(limiteFeriados.getDate() + 90);
+  // A janela precisa alcançar o feriado de HOJE. Com `gte: from` (instante
+  // corrente), um chamado aberto às 14h de um feriado tinha
+  // `data (meia-noite) < from (14h)` e o feriado do próprio dia ficava de fora —
+  // o prazo saía calculado como se o dia fosse útil.
+  //
+  // Recuar um dia inteiro, em vez de só zerar a hora, é de propósito: feriados
+  // são gravados pela meia-noite do fuso de QUEM grava (00:00Z pelo app em
+  // produção, 03:00Z quando veio de uma máquina em São Paulo), então uma borda
+  // exata em meia-noite ainda erraria conforme a origem do registro. Trazer um
+  // dia a mais é inofensivo: o calendário compara feriado por dia, e um feriado
+  // passado não casa com nenhuma data futura.
+  const inicioJanela = new Date(from);
+  inicioJanela.setHours(0, 0, 0, 0);
+  inicioJanela.setDate(inicioJanela.getDate() - 1);
+
+  const limiteFeriados = new Date(inicioJanela);
+  limiteFeriados.setDate(limiteFeriados.getDate() + 91);
   const feriados = await prisma.feriado.findMany({
-    where: { pdvId, data: { gte: from, lte: limiteFeriados } },
+    where: { pdvId, data: { gte: inicioJanela, lte: limiteFeriados } },
   });
 
   return { horarios, feriados: feriados.map((f) => f.data) };
@@ -201,31 +216,63 @@ export function tempoConclusaoChamado(
 }
 
 /**
- * Escolhe o próximo responsável em round-robin entre operadores/gestores ativos
- * do PDV, e avança o ponteiro de rotação. Retorna null se o PDV estiver em fila
- * aberta ou sem ninguém vinculado (mantém o comportamento manual de "assumir").
+ * Ids dos perfis cujos usuários podem atender chamado.
+ *
+ * O critério é `podeAlterarStatus`: quem é responsável por um chamado precisa
+ * conseguir move-lo. Hoje isso separa Administrador e Operador (atendem) de
+ * Gestor de Solicitante e Solicitante (só abrem).
+ *
+ * Antes daqui saía `perfil: { in: ["OPERADOR_LOGISTICA", "GESTOR_VD"] }`, dois
+ * literais do tempo em que o perfil era enum. Desde que virou cadastro,
+ * `Usuario.perfil` guarda o cuid de um PerfilAcesso, então esses literais nunca
+ * casavam com ninguém — e o filtro falhava em silêncio, sem erro, apenas
+ * devolvendo lista vazia.
+ *
+ * A consulta é separada porque `Usuario.perfil` é String sem relação declarada
+ * no schema: não dá para filtrar de forma aninhada pelo PerfilAcesso.
+ */
+async function idsPerfisQueAtendem(): Promise<string[]> {
+  const perfis = await prisma.perfilAcesso.findMany({
+    where: { ativo: true, podeAlterarStatus: true },
+    select: { id: true },
+  });
+  return perfis.map((p) => p.id);
+}
+
+/**
+ * Escolhe o próximo responsável em round-robin entre quem atende no PDV, e
+ * avança o ponteiro de rotação. Retorna null se o PDV estiver em fila aberta ou
+ * sem ninguém vinculado (mantém o comportamento manual de "assumir").
  */
 export async function resolveResponsavelAutomatico(pdvId: string): Promise<string | null> {
   const pdv = await prisma.pdv.findUnique({ where: { id: pdvId } });
   if (!pdv || pdv.regraDistribuicao !== "ROUND_ROBIN") return null;
 
+  const perfisQueAtendem = await idsPerfisQueAtendem();
+  if (perfisQueAtendem.length === 0) return null;
+
   const vinculos = await prisma.usuarioPdv.findMany({
-    where: { pdvId, usuario: { ativo: true, perfil: { in: ["OPERADOR_LOGISTICA", "GESTOR_VD"] } } },
-    include: { usuario: true },
+    where: { pdvId, usuario: { ativo: true, perfil: { in: perfisQueAtendem } } },
+    select: { usuarioId: true },
     orderBy: { usuarioId: "asc" },
   });
   if (vinculos.length === 0) return null;
 
-  const idxAtual = vinculos.findIndex((v) => v.usuarioId === pdv.proximoOperadorId);
-  const proximo = vinculos[(idxAtual + 1) % vinculos.length];
-  const depoisDoProximo = vinculos[(idxAtual + 2) % vinculos.length];
+  // O ponteiro guarda quem recebe o PRÓXIMO chamado. Se ainda não existe (ou
+  // aponta para alguém que saiu da lista), findIndex devolve -1 e começamos do
+  // primeiro. Avançar uma casa por chamado é o que faz a fila girar inteira:
+  // gravando +2 aqui, cada rodada pulava um vínculo, e numa lista de tamanho par
+  // metade da equipe nunca era escolhida.
+  const idx = vinculos.findIndex((v) => v.usuarioId === pdv.proximoOperadorId);
+  const escolhido = vinculos[idx === -1 ? 0 : idx];
+  const seguinte = vinculos[((idx === -1 ? 0 : idx) + 1) % vinculos.length];
 
   await prisma.pdv.update({
     where: { id: pdvId },
-    data: { proximoOperadorId: depoisDoProximo.usuarioId },
+    data: { proximoOperadorId: seguinte.usuarioId },
   });
 
-  return proximo.usuarioId;
+  return escolhido.usuarioId;
 }
 
 export async function findChamadoDuplicado(pedidoId: string, servicoId: string) {
@@ -248,15 +295,17 @@ export async function resolveRoteamento(pedidoId: string) {
   if (!pedido) throw new Error("Pedido não encontrado");
 
   const pdv = pedido.pdv;
-  const operadorAtivo = await prisma.usuarioPdv.findFirst({
-    where: {
-      pdvId: pdv.id,
-      usuario: {
-        ativo: true,
-        perfil: { in: ["OPERADOR_LOGISTICA", "GESTOR_VD"] },
-      },
-    },
-  });
+  const perfisQueAtendem = await idsPerfisQueAtendem();
+  const operadorAtivo =
+    perfisQueAtendem.length === 0
+      ? null
+      : await prisma.usuarioPdv.findFirst({
+          where: {
+            pdvId: pdv.id,
+            usuario: { ativo: true, perfil: { in: perfisQueAtendem } },
+          },
+          select: { usuarioId: true },
+        });
 
   return { pdv, semOperadorNoMomento: !operadorAtivo };
 }

@@ -11,6 +11,7 @@ import {
 } from "@/lib/permissions";
 import { STATUS_FINAIS, ANEXO_MAX_QUANTIDADE } from "@/lib/constants";
 import { validateAnexo, saveAnexo, deleteAnexoFile } from "@/lib/uploads";
+import { computeSlaVencimento } from "@/lib/tickets";
 
 const PRAZO_APAGAR_MS = 60_000;
 import { revalidatePath } from "next/cache";
@@ -297,17 +298,39 @@ export async function reabrirChamado(
     return { error: "Só é possível reabrir chamados finalizados ou cancelados." };
   }
 
-  if (chamado.finalizadoEm) {
-    const prazoLimite = new Date(chamado.finalizadoEm);
+  // O prazo conta da entrada no status final atual, que vem do histórico — não
+  // de finalizadoEm. Esse campo só é gravado ao FINALIZAR, de propósito: os
+  // relatórios contam "SLA cumprido" por finalizadoEm sem olhar o status
+  // (reports.ts:90), então gravá-lo ao cancelar faria chamado cancelado entrar
+  // como cumprido. Sem o histórico, um chamado CANCELADO ficava com referência
+  // nula e podia ser reaberto anos depois, sem limite nenhum.
+  const entradaNoStatusFinal = await prisma.statusHistorico.findFirst({
+    where: { chamadoId, status: chamado.status },
+    orderBy: { createdAt: "desc" },
+    select: { createdAt: true },
+  });
+  const referenciaPrazo = entradaNoStatusFinal?.createdAt ?? chamado.finalizadoEm;
+
+  if (referenciaPrazo) {
+    const prazoLimite = new Date(referenciaPrazo);
     prazoLimite.setDate(prazoLimite.getDate() + config.reaberturaPrazoDias);
     if (new Date() > prazoLimite) {
       return { error: `Prazo de reabertura (${config.reaberturaPrazoDias} dias corridos) expirado.` };
     }
   }
 
+  // O prazo de SLA precisa valer a partir de agora. Sem recalcular, o chamado
+  // reabre com o vencimento antigo — já no passado — e nasce "vencido" na fila e
+  // nos relatórios, sem chance de ser cumprido.
+  const novoVencimento = await computeSlaVencimento(chamado.servicoId, chamado.pdvId);
+
   await prisma.chamado.update({
     where: { id: chamadoId },
-    data: { status: "REABERTO", motivoReabertura: motivo },
+    data: {
+      status: "REABERTO",
+      motivoReabertura: motivo,
+      ...(novoVencimento ? { slaVencimentoEm: novoVencimento } : {}),
+    },
   });
 
   await prisma.statusHistorico.create({
