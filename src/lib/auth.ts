@@ -38,15 +38,31 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       // com que sejam conferidos na primeira requisição, que é o que se quer.
       if (Date.now() - (token.revalidadoEm ?? 0) < REVALIDAR_APOS_MS) return token;
 
-      const usuario = await prisma.usuario.findUnique({
-        where: { id: token.id },
-        include: { pdvVinculos: true },
-      });
+      let usuario;
+      let perfil;
+      try {
+        usuario = await prisma.usuario.findUnique({
+          where: { id: token.id },
+          include: { pdvVinculos: true },
+        });
+        perfil = usuario
+          ? await prisma.perfilAcesso.findUnique({ where: { id: usuario.perfil } })
+          : null;
+      } catch (e) {
+        // Banco fora do ar não pode virar logout em massa. Se a consulta falha,
+        // o Auth.js trata a exceção limpando o cookie de sessão — todo mundo
+        // cairia no login de uma vez por uma instabilidade passageira. Mantemos
+        // o token como está e tentamos de novo na requisição seguinte.
+        console.error(
+          "[auth] falha ao revalidar sessão, mantendo o token:",
+          e instanceof Error ? e.message : e
+        );
+        return token;
+      }
+
       // Retornar null faz o Auth.js limpar o cookie de sessão: quem foi
       // desativado ou removido cai no login na requisição seguinte.
       if (!usuario || !usuario.ativo) return null;
-
-      const perfil = await prisma.perfilAcesso.findUnique({ where: { id: usuario.perfil } });
       if (!perfil || !perfil.ativo) return null;
 
       token.nome = usuario.nome;
