@@ -11,6 +11,7 @@ import {
   SEM_RESPONSAVEL_VALUE,
 } from "@/lib/tickets";
 import type { PdvCalendar } from "@/lib/business-calendar";
+import { formatarDataHora } from "@/lib/datas";
 import { canOpenTicket, canChangeStatus } from "@/lib/permissions";
 import { AssumirIconButton } from "./assumir-icon-button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -32,15 +33,7 @@ function fmtHoras(h: number) {
   return `${(h / 24).toFixed(1)}d`;
 }
 
-function fmtDataHora(d: Date) {
-  return d.toLocaleString("pt-BR", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
+const fmtDataHora = formatarDataHora;
 
 function pageHref(sp: Record<string, string | undefined>, pagina: number) {
   const params = new URLSearchParams();

@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/session";
+import { formatarDataHora } from "@/lib/datas";
 import { canAccessChamado, canCancelOrReopenAny, canChangeStatus } from "@/lib/permissions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SlaBadge, StatusBadge } from "@/lib/ticket-badges";
@@ -200,7 +201,7 @@ export default async function ChamadoDetailPage({
                       <StatusBadge nome={statusInfo(h.status).nome} cor={statusInfo(h.status).cor} />
                     )}
                     <p className="mt-1 text-xs text-muted-foreground">
-                      {h.usuario.email} ({h.usuario.nome}) · {h.createdAt.toLocaleString("pt-BR")}
+                      {h.usuario.email} ({h.usuario.nome}) · {formatarDataHora(h.createdAt)}
                     </p>
                     <p className="mt-0.5 whitespace-pre-wrap">{h.texto}</p>
                   </li>

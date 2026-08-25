@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AutoRefresh } from "@/components/auto-refresh";
 import { COLOR_PALETTE, corBadgeClasses, corDotClasses } from "@/lib/color-palette";
 import { cn } from "@/lib/utils";
+import { formatarDataHora } from "@/lib/datas";
 import { ColorIcon } from "@/components/color-icon";
 import { AnexosField } from "@/components/anexos-field";
 import { MessageCircle, FileText, Video, MoreVertical, Download, Trash2, FileWarning } from "lucide-react";
@@ -177,7 +178,7 @@ function MessageRow({
           </div>
         )}
         <span className="mt-0.5 flex items-center gap-1.5 px-1 text-[11px] text-muted-foreground">
-          {new Date(m.createdAt).toLocaleString("pt-BR")}
+          {formatarDataHora(m.createdAt)}
           {isOwn && !m.apagadaEm && ` · ${m.lidoEm ? "Lido" : "Enviado"}`}
           {podeApagar && (
             <button

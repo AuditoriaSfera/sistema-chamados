@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { requireAdmin } from "@/lib/session";
+import { formatarDataHoraSegundos } from "@/lib/datas";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { MultiSelectFilter } from "@/components/multi-select-filter";
@@ -141,7 +142,7 @@ export default async function AuditoriaPage({
                 return (
                   <TableRow key={l.id}>
                     <TableCell className="align-top text-xs text-muted-foreground whitespace-nowrap">
-                      {l.createdAt.toLocaleString("pt-BR")}
+                      {formatarDataHoraSegundos(l.createdAt)}
                     </TableCell>
                     <TableCell className="align-top text-sm">{l.usuario.nome}</TableCell>
                     <TableCell className="align-top text-sm">
