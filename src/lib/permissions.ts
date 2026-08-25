@@ -49,12 +49,19 @@ export function canViewReports(user: SessionUser) {
 
 /**
  * Retorna os ids de PDV que o usuário pode enxergar na fila/listagem, ou `null`
- * quando o usuário tem visão ampla (todos os PDVs — inclui quem tem escopo
- * PROPRIOS, já que a abertura não sabe de antemão qual PDV vai atender).
+ * quando o usuário tem visão ampla (todos os PDVs).
+ *
+ * Escopo PROPRIOS normalmente devolve `null` de propósito: quem só vê os
+ * próprios chamados é contido pelo filtro de dono, e a abertura não sabe de
+ * antemão qual PDV vai atender. Mas `vePedidosDaEquipe` desliga justamente esse
+ * filtro de dono — então, nesse caso, o filtro de PDV passa a ser a única
+ * contenção que resta e precisa valer, senão "vê os pedidos da equipe" viraria
+ * "vê os chamados da rede inteira".
  */
 export function getVisiblePdvIds(user: SessionUser): string[] | null {
-  if (user.escopoChamados !== "PDVS_VINCULADOS") return null;
-  return user.pdvIds;
+  if (user.escopoChamados === "PDVS_VINCULADOS") return user.pdvIds;
+  if (user.escopoChamados === "PROPRIOS" && user.vePedidosDaEquipe) return user.pdvIds;
+  return null;
 }
 
 /** Um usuário com escopo PROPRIOS só vê os próprios chamados, a menos que vePedidosDaEquipe esteja ligado */
