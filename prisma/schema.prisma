@@ -57,7 +57,9 @@ model TokenSenha {
 }
 
 // Perfil de acesso — cadastro dinâmico e totalmente customizável pelo admin.
-// Cada perfil marca quais permissões tem. A visibilidade de chamados (antigo
+// Cada perfil marca quais permissões tem. Há dois níveis de administração:
+// podeGerenciarCadastros abre os cadastros, e podeGerenciarAdministradores
+// diz quem pode mexer nas contas que têm o primeiro. A visibilidade de chamados (antigo
 // campo único "escopoChamados") agora é derivada de veTodosChamados e
 // veChamadosPdvsVinculados — ver src/lib/constants.ts#derivarEscopoChamados.
 // Nenhuma das duas marcada cai no padrão: só os chamados que o usuário abriu.
@@ -74,6 +76,13 @@ model PerfilAcesso {
   podeCancelarReabrirTodos Boolean  @default(false)
   podeVerRelatorios        Boolean  @default(false)
   podeGerenciarCadastros   Boolean  @default(false)
+  // Poder sobre as contas administrativas — as de perfil com
+  // podeGerenciarCadastros. Quem gerencia cadastros mas nao tem esta flag
+  // alcanca so usuarios e perfis comuns: nao promove ninguem a administrador,
+  // nao redefine a senha de um (o que seria tomar a conta) e nao edita o
+  // proprio perfil pra se dar permissoes novas. Tambem porteira das telas de
+  // Configuracoes e Auditoria. Ver src/lib/permissions.ts#podeGerenciarAlvo.
+  podeGerenciarAdministradores Boolean @default(false)
   veTodosChamados          Boolean  @default(false)
   veChamadosPdvsVinculados Boolean  @default(false)
   createdAt                DateTime @default(now())

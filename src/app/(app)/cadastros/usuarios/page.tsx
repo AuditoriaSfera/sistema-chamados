@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { requireAdmin } from "@/lib/session";
+import { isPerfilAdministrativo, podeGerenciarAlvo } from "@/lib/permissions";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -19,7 +20,7 @@ export default async function UsuariosPage({
 }: {
   searchParams: Promise<Record<string, string | undefined>>;
 }) {
-  await requireAdmin();
+  const user = await requireAdmin();
   const sp = await searchParams;
 
   const [todos, todosPerfis, pdvsAtivos] = await Promise.all([
@@ -28,7 +29,17 @@ export default async function UsuariosPage({
     prisma.pdv.findMany({ where: { ativo: true }, orderBy: { codigo: "asc" } }),
   ]);
   const perfilMap = new Map(todosPerfis.map((p) => [p.id, p]));
-  const perfisAtivos = todosPerfis.filter((p) => p.ativo);
+  // Quem não é administrador pleno não atribui perfil administrativo — o
+  // servidor recusa, então esses perfis nem entram no seletor dos formulários.
+  const perfisAtivos = todosPerfis
+    .filter((p) => p.ativo)
+    .filter((p) => user.podeGerenciarAdministradores || !isPerfilAdministrativo(p));
+
+  /** Contas administrativas só são editáveis por administrador pleno. */
+  function gerenciavel(perfilId: string) {
+    const perfil = perfilMap.get(perfilId);
+    return perfil ? podeGerenciarAlvo(user, perfil) : true;
+  }
 
   const idValues = new Set((sp.id ?? "").split(",").filter(Boolean));
   const perfilValues = new Set((sp.perfil ?? "").split(",").filter(Boolean));
@@ -110,7 +121,9 @@ export default async function UsuariosPage({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {usuarios.map((u) => (
+              {usuarios.map((u) => {
+                const podeMexer = gerenciavel(u.perfil);
+                return (
                 <TableRow key={u.id}>
                   <TableCell>
                     <Link href={`/cadastros/usuarios/${u.id}`} className="font-medium hover:underline">
@@ -128,12 +141,14 @@ export default async function UsuariosPage({
                             ? u.pdvVinculos[0].pdv.codigo
                             : `${u.pdvVinculos.length} PDVs`}
                       </span>
-                      <VincularPdvsDialog
-                        usuarioId={u.id}
-                        usuarioNome={u.nome}
-                        pdvs={pdvsAtivos}
-                        vinculadasIds={u.pdvVinculos.map((v) => v.pdvId)}
-                      />
+                      {podeMexer && (
+                        <VincularPdvsDialog
+                          usuarioId={u.id}
+                          usuarioNome={u.nome}
+                          pdvs={pdvsAtivos}
+                          vinculadasIds={u.pdvVinculos.map((v) => v.pdvId)}
+                        />
+                      )}
                     </div>
                   </TableCell>
                   <TableCell>
@@ -142,16 +157,21 @@ export default async function UsuariosPage({
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    <div className="flex items-center gap-1">
-                      <EditarUsuarioDialog usuario={u} perfis={perfisAtivos} />
-                      <ExcluirUsuarioDialog usuario={u} />
-                    </div>
+                    {podeMexer ? (
+                      <div className="flex items-center gap-1">
+                        <EditarUsuarioDialog usuario={u} perfis={perfisAtivos} />
+                        <ExcluirUsuarioDialog usuario={u} />
+                      </div>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">Administrador</span>
+                    )}
                   </TableCell>
                   <TableCell>
-                    <UsuarioAtivoToggle usuarioId={u.id} ativo={u.ativo} />
+                    {podeMexer && <UsuarioAtivoToggle usuarioId={u.id} ativo={u.ativo} />}
                   </TableCell>
                 </TableRow>
-              ))}
+                );
+              })}
               {usuarios.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={7} className="text-center text-sm text-muted-foreground py-6">

@@ -1,7 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/db";
-import { requireAdmin } from "@/lib/session";
+import { requireGerenciarAdministradores } from "@/lib/session";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { logAudit } from "@/lib/audit";
@@ -16,7 +16,7 @@ export async function updateConfigGeral(
   _prevState: { error?: string } | undefined,
   formData: FormData
 ) {
-  const admin = await requireAdmin();
+  const admin = await requireGerenciarAdministradores();
   const parsed = configSchema.safeParse({
     reaberturaPrazoDias: formData.get("reaberturaPrazoDias"),
     reaberturaSomenteAdmin: formData.get("reaberturaSomenteAdmin") === "on",

@@ -2,10 +2,40 @@
 
 import { prisma } from "@/lib/db";
 import { requireAdmin } from "@/lib/session";
+import { podeGerenciarAlvo, type SessionUser } from "@/lib/permissions";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
 import { logAudit } from "@/lib/audit";
+
+const ERRO_ALVO_ADMIN = "Seu perfil não pode alterar o cadastro de um administrador.";
+const ERRO_PERFIL_ADMIN = "Seu perfil não pode atribuir um perfil administrativo.";
+
+/**
+ * Recusa a ação quando o alvo é uma conta administrativa e quem age não é
+ * administrador pleno. Devolve a mensagem de erro, ou null para seguir.
+ *
+ * Sem isso, quem só deveria gerenciar cadastros comuns tomaria a conta de um
+ * administrador pelo caminho mais curto: redefinir a senha dele na tela de
+ * edição, ou trocar o próprio perfil por um mais poderoso.
+ */
+async function barraAlvoAdministrativo(ator: SessionUser, usuarioId: string) {
+  if (ator.podeGerenciarAdministradores) return null;
+  const alvo = await prisma.usuario.findUnique({
+    where: { id: usuarioId },
+    select: { perfil: true },
+  });
+  if (!alvo) return "Usuário não encontrado.";
+  const perfilAlvo = await prisma.perfilAcesso.findUnique({ where: { id: alvo.perfil } });
+  if (!perfilAlvo) return "Perfil do usuário não encontrado.";
+  return podeGerenciarAlvo(ator, perfilAlvo) ? null : ERRO_ALVO_ADMIN;
+}
+
+/** Versão para as ações que não devolvem estado de erro para o formulário. */
+async function exigirAlvoGerenciavel(ator: SessionUser, usuarioId: string) {
+  const erro = await barraAlvoAdministrativo(ator, usuarioId);
+  if (erro) throw new Error(erro);
+}
 
 // Telefone: aceita formatos brasileiros comuns, com ou sem máscara.
 const telefoneSchema = z
@@ -49,6 +79,7 @@ export async function createUsuario(
 
   const perfilValido = await prisma.perfilAcesso.findUnique({ where: { id: parsed.data.perfil } });
   if (!perfilValido) return { error: "Perfil inválido." };
+  if (!podeGerenciarAlvo(admin, perfilValido)) return { error: ERRO_PERFIL_ADMIN };
 
   // o login e o e-mail entram no mesmo campo na tela de login, então nenhum dos
   // dois pode colidir com o do outro usuário
@@ -88,6 +119,7 @@ export async function createUsuario(
 
 export async function toggleUsuarioAtivo(usuarioId: string, ativo: boolean) {
   const admin = await requireAdmin();
+  await exigirAlvoGerenciavel(admin, usuarioId);
   await prisma.usuario.update({ where: { id: usuarioId }, data: { ativo } });
   await logAudit("Usuario", usuarioId, ativo ? "ATIVAR" : "DESATIVAR", admin.id);
   revalidatePath("/cadastros/usuarios");
@@ -124,8 +156,15 @@ export async function updateUsuario(
     };
   }
 
+  // Dois lados a conferir: o cadastro que está sendo alterado e o perfil que
+  // se quer atribuir. Barrar só o primeiro deixaria promover um usuário comum
+  // a administrador; barrar só o segundo deixaria rebaixar um administrador.
+  const bloqueio = await barraAlvoAdministrativo(admin, usuarioId);
+  if (bloqueio) return { error: bloqueio };
+
   const perfilValido = await prisma.perfilAcesso.findUnique({ where: { id: parsed.data.perfil } });
   if (!perfilValido) return { error: "Perfil inválido." };
+  if (!podeGerenciarAlvo(admin, perfilValido)) return { error: ERRO_PERFIL_ADMIN };
 
   const existe = await prisma.usuario.findFirst({
     where: {
@@ -178,6 +217,9 @@ export async function deleteUsuario(
     return { error: "Você não pode excluir sua própria conta." };
   }
 
+  const bloqueio = await barraAlvoAdministrativo(admin, usuarioId);
+  if (bloqueio) return { error: bloqueio };
+
   const usuario = await prisma.usuario.findUnique({
     where: { id: usuarioId },
     include: {
@@ -208,6 +250,7 @@ export async function deleteUsuario(
 
 export async function setUsuarioPdvVinculo(usuarioId: string, pdvId: string, vinculado: boolean) {
   const admin = await requireAdmin();
+  await exigirAlvoGerenciavel(admin, usuarioId);
   if (vinculado) {
     await prisma.usuarioPdv.upsert({
       where: { usuarioId_pdvId: { usuarioId, pdvId } },
@@ -229,6 +272,7 @@ export async function setUsuarioPdvVinculoTodos(
   vinculado: boolean
 ) {
   const admin = await requireAdmin();
+  await exigirAlvoGerenciavel(admin, usuarioId);
   if (vinculado) {
     await prisma.$transaction(
       pdvIds.map((pdvId) =>
@@ -255,6 +299,7 @@ export async function setUsuarioPdvVinculoTodos(
 
 export async function setUsuarioVePedidosDaEquipe(usuarioId: string, valor: boolean) {
   const admin = await requireAdmin();
+  await exigirAlvoGerenciavel(admin, usuarioId);
   await prisma.usuario.update({ where: { id: usuarioId }, data: { vePedidosDaEquipe: valor } });
   await logAudit("Usuario", usuarioId, "ATUALIZAR_VE_PEDIDOS_EQUIPE", admin.id, { valor });
   revalidatePath(`/cadastros/usuarios/${usuarioId}`);

@@ -202,6 +202,26 @@ async function main() {
       podeCancelarReabrirProprio: true,
       podeVerRelatorios: true,
       podeGerenciarCadastros: true,
+      podeGerenciarAdministradores: true,
+      veTodosChamados: true,
+      veChamadosPdvsVinculados: false,
+    },
+    // Supervisão: acompanha todos os chamados e mantém os cadastros, mas não
+    // trabalha chamado nenhum (não abre, não responde, não muda status) e não
+    // alcança as contas administrativas — sem podeGerenciarAdministradores ele
+    // não promove ninguém, não edita o próprio perfil e não entra em
+    // Configurações/Auditoria.
+    {
+      nome: "Supervisor de Cadastros",
+      cor: "cyan",
+      podeAbrirChamado: false,
+      podeAlterarStatus: false,
+      podeResponderChat: false,
+      podeCancelarReabrirProprio: false,
+      podeCancelarReabrirTodos: false,
+      podeVerRelatorios: true,
+      podeGerenciarCadastros: true,
+      podeGerenciarAdministradores: false,
       veTodosChamados: true,
       veChamadosPdvsVinculados: false,
     },

@@ -18,6 +18,7 @@ declare module "next-auth" {
       podeCancelarReabrirTodos: boolean;
       podeVerRelatorios: boolean;
       podeGerenciarCadastros: boolean;
+      podeGerenciarAdministradores: boolean;
       escopoChamados: EscopoChamados;
       senhaProvisoria: boolean;
     };
@@ -39,6 +40,7 @@ declare module "@auth/core/jwt" {
     podeCancelarReabrirTodos: boolean;
     podeVerRelatorios: boolean;
     podeGerenciarCadastros: boolean;
+    podeGerenciarAdministradores: boolean;
     escopoChamados: EscopoChamados;
     senhaProvisoria: boolean;
     /** Momento da última conferência contra o banco — ver o callback jwt em auth.ts. */
@@ -58,6 +60,7 @@ type AuthorizedUser = {
   podeCancelarReabrirTodos: boolean;
   podeVerRelatorios: boolean;
   podeGerenciarCadastros: boolean;
+  podeGerenciarAdministradores: boolean;
   escopoChamados: EscopoChamados;
   senhaProvisoria: boolean;
 };
@@ -89,6 +92,7 @@ export const authConfig = {
         token.podeCancelarReabrirTodos = u.podeCancelarReabrirTodos;
         token.podeVerRelatorios = u.podeVerRelatorios;
         token.podeGerenciarCadastros = u.podeGerenciarCadastros;
+        token.podeGerenciarAdministradores = u.podeGerenciarAdministradores;
         token.escopoChamados = u.escopoChamados;
         token.senhaProvisoria = u.senhaProvisoria;
         token.revalidadoEm = Date.now();
@@ -109,6 +113,7 @@ export const authConfig = {
       session.user.podeCancelarReabrirTodos = token.podeCancelarReabrirTodos;
       session.user.podeVerRelatorios = token.podeVerRelatorios;
       session.user.podeGerenciarCadastros = token.podeGerenciarCadastros;
+      session.user.podeGerenciarAdministradores = token.podeGerenciarAdministradores;
       session.user.escopoChamados = token.escopoChamados;
       session.user.senhaProvisoria = token.senhaProvisoria;
       return session;

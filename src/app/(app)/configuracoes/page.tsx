@@ -1,10 +1,10 @@
 import { prisma } from "@/lib/db";
-import { requireAdmin } from "@/lib/session";
+import { requireGerenciarAdministradores } from "@/lib/session";
 import Link from "next/link";
 import { ConfigForm } from "./config-form";
 
 export default async function ConfiguracoesPage() {
-  await requireAdmin();
+  await requireGerenciarAdministradores();
 
   const config = await prisma.configGeral.upsert({
     where: { id: "geral" },

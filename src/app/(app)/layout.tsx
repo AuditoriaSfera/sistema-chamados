@@ -1,5 +1,5 @@
 import { requireUser } from "@/lib/session";
-import { canManageCadastros, canViewReports } from "@/lib/permissions";
+import { canManageAdmins, canManageCadastros, canViewReports } from "@/lib/permissions";
 import { AppSidebar } from "./app-sidebar";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
@@ -15,7 +15,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     { href: "/cadastros/sla", label: "SLA", icon: "sla", show: canManageCadastros(user) },
     { href: "/cadastros/usuarios", label: "Usuários", icon: "usuarios", show: canManageCadastros(user) },
     { href: "/cadastros/perfis", label: "Perfis", icon: "perfis", show: canManageCadastros(user) },
-    { href: "/configuracoes", label: "Configurações", icon: "configuracoes", show: canManageCadastros(user) },
+    // Configurações mexe nas regras globais de chamado e dá acesso à auditoria —
+    // fica no nível de administrador pleno, acima de "gerenciar cadastros".
+    { href: "/configuracoes", label: "Configurações", icon: "configuracoes", show: canManageAdmins(user) },
   ].filter((item) => item.show);
 
   return (

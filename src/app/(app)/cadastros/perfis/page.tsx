@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { requireAdmin } from "@/lib/session";
+import { isPerfilAdministrativo } from "@/lib/permissions";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -29,6 +30,7 @@ const PERMISSOES_LABELS: Record<string, string> = {
   podeCancelarReabrirTodos: "Cancelar/reabrir de outros",
   podeVerRelatorios: "Relatórios",
   podeGerenciarCadastros: "Cadastros",
+  podeGerenciarAdministradores: "Administradores",
 };
 
 export default async function PerfisPage({
@@ -36,7 +38,7 @@ export default async function PerfisPage({
 }: {
   searchParams: Promise<Record<string, string | undefined>>;
 }) {
-  await requireAdmin();
+  const user = await requireAdmin();
   const sp = await searchParams;
   const todos = await prisma.perfilAcesso.findMany({ orderBy: { ordem: "asc" } });
 
@@ -77,7 +79,7 @@ export default async function PerfisPage({
             Perfis de acesso e as permissões de cada um. Cada usuário tem um perfil vinculado.
           </p>
         </div>
-        <NovoPerfilDialog />
+        <NovoPerfilDialog podeGerenciarAdministradores={user.podeGerenciarAdministradores} />
       </div>
 
       <Card>
@@ -135,6 +137,10 @@ export default async function PerfisPage({
                 const permissoesAtivas = Object.keys(PERMISSOES_LABELS).filter(
                   (k) => p[k as keyof typeof p] === true
                 );
+                // Perfil administrativo só é editável por administrador pleno —
+                // as actions recusam, então nem mostramos os botões.
+                const gerenciavel =
+                  user.podeGerenciarAdministradores || !isPerfilAdministrativo(p);
                 return (
                   <TableRow key={p.id}>
                     <TableCell className="text-center align-top">
@@ -162,13 +168,20 @@ export default async function PerfisPage({
                       </Badge>
                     </TableCell>
                     <TableCell className="text-center align-top">
-                      <div className="flex items-center justify-center gap-1">
-                        <EditarPerfilDialog perfil={p} />
-                        <ExcluirPerfilDialog perfil={p} />
-                      </div>
+                      {gerenciavel ? (
+                        <div className="flex items-center justify-center gap-1">
+                          <EditarPerfilDialog
+                            perfil={p}
+                            podeGerenciarAdministradores={user.podeGerenciarAdministradores}
+                          />
+                          <ExcluirPerfilDialog perfil={p} />
+                        </div>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">Administrativo</span>
+                      )}
                     </TableCell>
                     <TableCell className="text-center align-top">
-                      <PerfilAtivoToggle perfilId={p.id} ativo={p.ativo} />
+                      {gerenciavel && <PerfilAtivoToggle perfilId={p.id} ativo={p.ativo} />}
                     </TableCell>
                   </TableRow>
                 );

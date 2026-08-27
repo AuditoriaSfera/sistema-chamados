@@ -69,6 +69,7 @@ const DETALHE_CAMPOS: Record<string, { label: string; ref?: boolean; refLista?: 
   podeCancelarReabrirTodos: { label: "Pode cancelar/reabrir chamado de outros" },
   podeVerRelatorios: { label: "Pode ver relatórios" },
   podeGerenciarCadastros: { label: "Pode gerenciar cadastros" },
+  podeGerenciarAdministradores: { label: "Pode gerenciar administradores e configurações" },
   escopoChamados: { label: "Escopo de chamados" },
 };
 

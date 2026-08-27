@@ -44,6 +44,7 @@ const PERM_TOTAL = {
   podeAbrirChamado: true, podeAlterarStatus: true, podeResponderChat: true,
   podeCancelarReabrirProprio: true, podeCancelarReabrirTodos: true,
   podeVerRelatorios: true, podeGerenciarCadastros: true,
+  podeGerenciarAdministradores: true,
   veTodosChamados: true, veChamadosPdvsVinculados: true,
 };
 
@@ -56,7 +57,7 @@ await client.connect();
 try {
   // ---- escolha do perfil ----
   let { rows: perfis } = await client.query(
-    `select id, nome, "podeGerenciarCadastros", "veTodosChamados"
+    `select id, nome, "podeGerenciarCadastros", "podeGerenciarAdministradores", "veTodosChamados"
      from "PerfilAcesso" where ativo order by ordem`
   );
 
@@ -69,12 +70,12 @@ try {
       [id, ...Object.values(PERM_TOTAL)]
     );
     console.log('Nenhum perfil existia — criei "Administrador" com acesso total.');
-    perfis = [{ id, nome: "Administrador", podeGerenciarCadastros: true, veTodosChamados: true }];
+    perfis = [{ id, nome: "Administrador", podeGerenciarAdministradores: true }];
   }
 
   console.log("\nPerfis disponíveis:");
   perfis.forEach((p, i) => {
-    const marca = p.podeGerenciarCadastros && p.veTodosChamados ? "  (acesso total)" : "";
+    const marca = p.podeGerenciarAdministradores ? "  (administrador pleno)" : "";
     console.log(`  ${i + 1}) ${p.nome}${marca}`);
   });
   const escolha = await pergunta(`Perfil [1-${perfis.length}]: `);

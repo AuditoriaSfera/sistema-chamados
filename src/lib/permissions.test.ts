@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   canAccessChamado,
   getVisiblePdvIds,
+  isPerfilAdministrativo,
+  podeGerenciarAlvo,
   ticketScopeFilterForRequester,
   type SessionUser,
 } from "./permissions";
@@ -22,6 +24,7 @@ function user(overrides: Partial<SessionUser>): SessionUser {
     podeCancelarReabrirTodos: false,
     podeVerRelatorios: true,
     podeGerenciarCadastros: false,
+    podeGerenciarAdministradores: false,
     escopoChamados: "PROPRIOS",
     senhaProvisoria: false,
     ...overrides,
@@ -120,5 +123,57 @@ describe("escopo PROPRIOS combinado com vePedidosDaEquipe", () => {
     const u = user({ escopoChamados: "TODOS", vePedidosDaEquipe: true, pdvIds: [] });
     expect(getVisiblePdvIds(u)).toBeNull();
     expect(canAccessChamado(u, deOutroPdv)).toBe(true);
+  });
+});
+
+describe("perfis administrativos", () => {
+  const comum = { podeGerenciarCadastros: false, podeGerenciarAdministradores: false };
+  const gestorCadastros = { podeGerenciarCadastros: true, podeGerenciarAdministradores: false };
+  const adminPleno = { podeGerenciarCadastros: true, podeGerenciarAdministradores: true };
+
+  function supervisor() {
+    return user({ podeGerenciarCadastros: true, podeGerenciarAdministradores: false });
+  }
+  function admin() {
+    return user({ podeGerenciarCadastros: true, podeGerenciarAdministradores: true });
+  }
+
+  it("é administrativo quem gerencia cadastros ou administradores", () => {
+    expect(isPerfilAdministrativo(comum)).toBe(false);
+    expect(isPerfilAdministrativo(gestorCadastros)).toBe(true);
+    expect(isPerfilAdministrativo(adminPleno)).toBe(true);
+    // perfil só com a segunda flag também conta — senão escaparia da trava
+    expect(
+      isPerfilAdministrativo({ podeGerenciarCadastros: false, podeGerenciarAdministradores: true })
+    ).toBe(true);
+  });
+
+  it("supervisor de cadastros mexe em perfil comum", () => {
+    expect(podeGerenciarAlvo(supervisor(), comum)).toBe(true);
+  });
+
+  it("supervisor de cadastros NÃO mexe em perfil administrativo", () => {
+    expect(podeGerenciarAlvo(supervisor(), gestorCadastros)).toBe(false);
+    expect(podeGerenciarAlvo(supervisor(), adminPleno)).toBe(false);
+  });
+
+  // O perfil do próprio supervisor é administrativo, então a mesma regra que
+  // protege o administrador impede que ele edite o perfil dele e se promova.
+  it("supervisor não alcança o próprio perfil", () => {
+    const u = supervisor();
+    expect(podeGerenciarAlvo(u, { podeGerenciarCadastros: true, podeGerenciarAdministradores: false })).toBe(
+      false
+    );
+  });
+
+  it("administrador pleno mexe em qualquer perfil", () => {
+    expect(podeGerenciarAlvo(admin(), comum)).toBe(true);
+    expect(podeGerenciarAlvo(admin(), gestorCadastros)).toBe(true);
+    expect(podeGerenciarAlvo(admin(), adminPleno)).toBe(true);
+  });
+
+  it("quem não gerencia cadastros não mexe em nada", () => {
+    const solicitante = user({ podeGerenciarCadastros: false });
+    expect(podeGerenciarAlvo(solicitante, comum)).toBe(false);
   });
 });

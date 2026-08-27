@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
+import { cn } from "@/lib/utils";
 import {
   Dialog,
   DialogContent,
@@ -26,10 +27,27 @@ const PERMISSOES = [
   { name: "podeCancelarReabrirProprio", label: "Cancelar/reabrir chamado próprio" },
   { name: "podeCancelarReabrirTodos", label: "Cancelar/reabrir chamado de outros usuários" },
   { name: "podeVerRelatorios", label: "Ver relatórios e monitoramento" },
-  { name: "podeGerenciarCadastros", label: "Gerenciar cadastros (PDVs, Serviços, Status, SLA, Usuários, Perfis)" },
 ] as const;
 
-export function NovoPerfilDialog() {
+// Permissões que tornam o perfil administrativo. Só quem já é administrador
+// pleno consegue marcá-las — o servidor recusa a concessão de qualquer uma
+// delas por quem não tem podeGerenciarAdministradores (ver actions.ts).
+const PERMISSOES_ADMIN = [
+  {
+    name: "podeGerenciarCadastros",
+    label: "Gerenciar cadastros (PDVs, Serviços, Status, SLA, Usuários, Perfis)",
+  },
+  {
+    name: "podeGerenciarAdministradores",
+    label: "Gerenciar administradores, configurações e auditoria",
+  },
+] as const;
+
+export function NovoPerfilDialog({
+  podeGerenciarAdministradores,
+}: {
+  podeGerenciarAdministradores: boolean;
+}) {
   const [open, setOpen] = useState(false);
   const [state, formAction, pending] = useActionState(createPerfil, undefined);
   const [processedState, setProcessedState] = useState(state);
@@ -71,6 +89,26 @@ export function NovoPerfilDialog() {
                 {p.label}
               </label>
             ))}
+          </div>
+          <div className="space-y-2">
+            <Label>Administração</Label>
+            {PERMISSOES_ADMIN.map((p) => (
+              <label
+                key={p.name}
+                className={cn(
+                  "flex items-center gap-2 text-sm",
+                  !podeGerenciarAdministradores && "opacity-50"
+                )}
+              >
+                <Checkbox name={p.name} disabled={!podeGerenciarAdministradores} />
+                {p.label}
+              </label>
+            ))}
+            {!podeGerenciarAdministradores && (
+              <p className="text-xs text-muted-foreground">
+                Só um administrador pleno concede estas permissões.
+              </p>
+            )}
           </div>
           <p className="text-xs text-muted-foreground">A cor é atribuída automaticamente ao criar.</p>
           {state?.error && <p className="text-sm text-destructive">{state.error}</p>}

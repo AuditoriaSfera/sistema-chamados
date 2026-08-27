@@ -77,6 +77,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       token.podeCancelarReabrirTodos = perfil.podeCancelarReabrirTodos;
       token.podeVerRelatorios = perfil.podeVerRelatorios;
       token.podeGerenciarCadastros = perfil.podeGerenciarCadastros;
+      token.podeGerenciarAdministradores = perfil.podeGerenciarAdministradores;
       token.escopoChamados = derivarEscopoChamados(perfil);
       token.senhaProvisoria = usuario.senhaProvisoria;
       token.revalidadoEm = Date.now();
@@ -130,6 +131,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           podeCancelarReabrirTodos: perfil.podeCancelarReabrirTodos,
           podeVerRelatorios: perfil.podeVerRelatorios,
           podeGerenciarCadastros: perfil.podeGerenciarCadastros,
+          podeGerenciarAdministradores: perfil.podeGerenciarAdministradores,
           escopoChamados: derivarEscopoChamados(perfil),
           senhaProvisoria: usuario.senhaProvisoria,
         };

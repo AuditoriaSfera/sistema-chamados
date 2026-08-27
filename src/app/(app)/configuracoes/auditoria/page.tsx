@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
-import { requireAdmin } from "@/lib/session";
+import { requireGerenciarAdministradores } from "@/lib/session";
 import { formatarDataHoraSegundos } from "@/lib/datas";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -23,7 +23,7 @@ export default async function AuditoriaPage({
 }: {
   searchParams: Promise<Record<string, string | undefined>>;
 }) {
-  await requireAdmin();
+  await requireGerenciarAdministradores();
   const sp = await searchParams;
 
   const where: {

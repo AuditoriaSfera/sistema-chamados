@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { requireAdmin } from "@/lib/session";
+import { podeGerenciarAlvo } from "@/lib/permissions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { derivarEscopoChamados } from "@/lib/constants";
 import { PdvVinculoBusca } from "./pdv-vinculo-busca";
@@ -11,7 +12,7 @@ export default async function UsuarioDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  await requireAdmin();
+  const user = await requireAdmin();
   const { id } = await params;
 
   const [usuario, pdvs] = await Promise.all([
@@ -25,8 +26,11 @@ export default async function UsuarioDetailPage({
 
   const vinculadas = new Set(usuario.pdvVinculos.map((v) => v.pdvId));
   const escopo = derivarEscopoChamados(perfil);
-  const usaVinculoPdv = escopo === "PDVS_VINCULADOS";
-  const usaVePedidosEquipe = escopo === "PROPRIOS";
+  // Conta administrativa: só administrador pleno mexe. As actions recusam de
+  // qualquer forma — aqui é para não oferecer um controle que vai dar erro.
+  const podeMexer = podeGerenciarAlvo(user, perfil);
+  const usaVinculoPdv = escopo === "PDVS_VINCULADOS" && podeMexer;
+  const usaVePedidosEquipe = escopo === "PROPRIOS" && podeMexer;
 
   return (
     <div className="space-y-6 max-w-2xl">
@@ -69,7 +73,13 @@ export default async function UsuarioDetailPage({
         </Card>
       )}
 
-      {!usaVinculoPdv && !usaVePedidosEquipe && (
+      {!podeMexer && (
+        <p className="text-sm text-muted-foreground">
+          Este é um cadastro administrativo — só um administrador pleno pode alterá-lo.
+        </p>
+      )}
+
+      {podeMexer && !usaVinculoPdv && !usaVePedidosEquipe && (
         <p className="text-sm text-muted-foreground">
           Este perfil enxerga todos os chamados, sem restrição por PDV.
         </p>
