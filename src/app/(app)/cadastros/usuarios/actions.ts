@@ -220,28 +220,53 @@ export async function deleteUsuario(
   const bloqueio = await barraAlvoAdministrativo(admin, usuarioId);
   if (bloqueio) return { error: bloqueio };
 
+  // Todo vínculo com ON DELETE RESTRICT precisa ser checado aqui — senão o
+  // delete estoura como erro de constraint no meio da tela. São eles:
+  // Chamado.abertoPorId, Mensagem.autorId, StatusHistorico.usuarioId,
+  // Anexo.autorId e AuditLog.usuarioId. Os demais vínculos (UsuarioPdv,
+  // TokenSenha, Chamado.responsavelId, Pdv.proximoOperadorId) são CASCADE ou
+  // SET NULL e se resolvem sozinhos.
   const usuario = await prisma.usuario.findUnique({
     where: { id: usuarioId },
     include: {
       _count: {
-        select: { chamadosAbertos: true, chamadosAtendidos: true, mensagens: true, statusHistoricos: true },
+        select: {
+          chamadosAbertos: true,
+          chamadosAtendidos: true,
+          mensagens: true,
+          statusHistoricos: true,
+          anexos: true,
+          auditLogs: true,
+        },
       },
     },
   });
   if (!usuario) return { error: "Usuário não encontrado." };
-  const emUso =
-    usuario._count.chamadosAbertos +
-    usuario._count.chamadosAtendidos +
-    usuario._count.mensagens +
-    usuario._count.statusHistoricos;
-  if (emUso > 0) {
+
+  const vinculos: string[] = [];
+  const c = usuario._count;
+  if (c.chamadosAbertos) vinculos.push(`${c.chamadosAbertos} chamado(s) aberto(s)`);
+  if (c.chamadosAtendidos) vinculos.push(`${c.chamadosAtendidos} chamado(s) atendido(s)`);
+  if (c.mensagens) vinculos.push(`${c.mensagens} mensagem(ns)`);
+  if (c.statusHistoricos) vinculos.push(`${c.statusHistoricos} mudança(s) de status`);
+  if (c.anexos) vinculos.push(`${c.anexos} anexo(s)`);
+  if (c.auditLogs) vinculos.push(`${c.auditLogs} registro(s) de auditoria`);
+
+  if (vinculos.length > 0) {
     return {
-      error: "Não é possível excluir: este usuário tem chamados ou mensagens vinculados. Desative-o em vez de excluir.",
+      error:
+        `Não é possível excluir: este usuário tem ${vinculos.join(", ")}. ` +
+        "Esse histórico não pode ser apagado — desative o usuário em vez de excluir.",
     };
   }
 
-  await prisma.usuarioPdv.deleteMany({ where: { usuarioId } });
-  await prisma.usuario.delete({ where: { id: usuarioId } });
+  // Numa transação só: se o delete do usuário falhar por algum vínculo que a
+  // checagem acima não previu, os vínculos de PDV não ficam apagados no meio
+  // do caminho.
+  await prisma.$transaction([
+    prisma.usuarioPdv.deleteMany({ where: { usuarioId } }),
+    prisma.usuario.delete({ where: { id: usuarioId } }),
+  ]);
   await logAudit("Usuario", usuarioId, "DELETE", admin.id, { nome: usuario.nome, email: usuario.email });
 
   revalidatePath("/cadastros/usuarios");
