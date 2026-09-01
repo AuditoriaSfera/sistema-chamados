@@ -18,9 +18,7 @@ export default async function RedefinirSenhaPage({
       <div className="pointer-events-none absolute bottom-0 right-0 h-72 w-72 translate-x-1/3 translate-y-1/3 rounded-full bg-primary/15 blur-[100px]" />
       <div className="relative w-full max-w-sm space-y-8">
         <div className="space-y-2 text-center">
-          <div className="mx-auto flex size-12 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-primary/40 text-lg font-bold text-primary-foreground shadow-[0_0_32px_-4px_var(--primary)]">
-            S
-          </div>
+          <img src="/logo-s.png" alt="" className="mx-auto size-14" />
           <h1 className="text-2xl font-semibold tracking-tight text-foreground">Nova senha</h1>
         </div>
         {valido ? (

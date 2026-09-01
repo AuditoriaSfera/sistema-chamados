@@ -100,9 +100,7 @@ export function AppSidebar({
         )}
       >
         <div className={cn("flex items-center gap-2.5", collapsed && "flex-col")}>
-          <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-primary/50 text-primary-foreground text-sm font-bold shadow-[0_0_16px_-2px_var(--primary)]">
-            S
-          </div>
+          <img src="/logo-s.png" alt="" className="size-8 shrink-0" />
           {!collapsed && (
             <div className="min-w-0">
               <p className="truncate text-sm font-semibold text-sidebar-foreground leading-tight">
