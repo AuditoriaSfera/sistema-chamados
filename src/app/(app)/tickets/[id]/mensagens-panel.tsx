@@ -11,9 +11,53 @@ import { cn } from "@/lib/utils";
 import { formatarDataHora } from "@/lib/datas";
 import { ColorIcon } from "@/components/color-icon";
 import { AnexosField } from "@/components/anexos-field";
-import { MessageCircle, FileText, Video, MoreVertical, Download, Trash2, FileWarning } from "lucide-react";
+import {
+  MessageCircle,
+  FileText,
+  Video,
+  MoreVertical,
+  Download,
+  Trash2,
+  FileWarning,
+  Palette,
+} from "lucide-react";
 
 const PRAZO_APAGAR_MS = 60_000;
+
+const COR_FUNDO_PADRAO = "#dbeafe";
+const CORES_FUNDO_PRESET = [
+  "#dbeafe",
+  "#dcfce7",
+  "#fef9c3",
+  "#fce7f3",
+  "#ede9fe",
+  "#cffafe",
+  "#ffedd5",
+  "#f1f5f9",
+  "#fee2e2",
+  "#ecfccb",
+];
+
+function corFundoChatKey(userId: string) {
+  return `chat-cor-fundo:${userId}`;
+}
+
+/** Cada usuário guarda sua própria cor no navegador — não é dado do chamado, é preferência de quem olha. */
+function lerCorFundoSalva(userId: string): string {
+  try {
+    return localStorage.getItem(corFundoChatKey(userId)) || COR_FUNDO_PADRAO;
+  } catch {
+    return COR_FUNDO_PADRAO;
+  }
+}
+
+function salvarCorFundo(userId: string, cor: string) {
+  try {
+    localStorage.setItem(corFundoChatKey(userId), cor);
+  } catch {
+    // localStorage indisponível (modo privado, etc.) — a cor vale só pra sessão atual.
+  }
+}
 
 type MensagemAnexo = {
   id: string;
@@ -45,10 +89,20 @@ export function MensagensPanel({
 }) {
   const [, startTransition] = useTransition();
   const haNaoLidas = mensagens.some((m) => m.autorId !== currentUserId && !m.lidoEm);
+  const [corFundo, setCorFundoState] = useState(COR_FUNDO_PADRAO);
 
   useEffect(() => {
     if (haNaoLidas) startTransition(() => marcarMensagensComoLidas(chamadoId));
   }, [haNaoLidas, chamadoId]);
+
+  useEffect(() => {
+    setCorFundoState(lerCorFundoSalva(currentUserId));
+  }, [currentUserId]);
+
+  function mudarCorFundo(cor: string) {
+    setCorFundoState(cor);
+    salvarCorFundo(currentUserId, cor);
+  }
 
   return (
     <Card>
@@ -56,12 +110,88 @@ export function MensagensPanel({
       <CardHeader className="flex flex-row items-center gap-2.5">
         <ColorIcon icon={MessageCircle} color="blue" />
         <CardTitle className="text-base">Conversa</CardTitle>
+        <CorFundoPicker cor={corFundo} onChange={mudarCorFundo} />
       </CardHeader>
       <CardContent>
-        <MessageList mensagens={mensagens} currentUserId={currentUserId} chamadoId={chamadoId} />
+        <MessageList
+          mensagens={mensagens}
+          currentUserId={currentUserId}
+          chamadoId={chamadoId}
+          corFundo={corFundo}
+        />
         <MessageForm chamadoId={chamadoId} />
       </CardContent>
     </Card>
+  );
+}
+
+function CorFundoPicker({ cor, onChange }: { cor: string; onChange: (cor: string) => void }) {
+  const [aberto, setAberto] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!aberto) return;
+    function onClickFora(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setAberto(false);
+    }
+    document.addEventListener("mousedown", onClickFora);
+    return () => document.removeEventListener("mousedown", onClickFora);
+  }, [aberto]);
+
+  return (
+    <div className="relative ml-auto" ref={ref}>
+      <button
+        type="button"
+        title="Cor de fundo da conversa"
+        onClick={() => setAberto((v) => !v)}
+        className="flex size-7 items-center justify-center rounded-full border hover:opacity-80"
+        style={{ backgroundColor: cor }}
+      >
+        <Palette className="size-3.5 text-black/50" />
+      </button>
+      {aberto && (
+        <div className="absolute right-0 top-9 z-10 w-52 rounded-lg border bg-popover p-3 text-popover-foreground shadow-md">
+          <p className="mb-2 text-xs font-medium">Cor de fundo da conversa</p>
+          <div className="grid grid-cols-5 gap-1.5">
+            {CORES_FUNDO_PRESET.map((c) => (
+              <button
+                key={c}
+                type="button"
+                title={c}
+                onClick={() => {
+                  onChange(c);
+                  setAberto(false);
+                }}
+                className={cn(
+                  "size-6 rounded-full border-2",
+                  cor.toLowerCase() === c ? "border-primary" : "border-transparent"
+                )}
+                style={{ backgroundColor: c }}
+              />
+            ))}
+          </div>
+          <label className="mt-3 flex items-center justify-between gap-2 text-xs text-muted-foreground">
+            Personalizada
+            <input
+              type="color"
+              value={cor}
+              onChange={(e) => onChange(e.target.value)}
+              className="size-6 cursor-pointer rounded border-0 bg-transparent p-0"
+            />
+          </label>
+          <button
+            type="button"
+            onClick={() => {
+              onChange(COR_FUNDO_PADRAO);
+              setAberto(false);
+            }}
+            className="mt-2 text-left text-xs text-muted-foreground hover:text-foreground hover:underline"
+          >
+            Restaurar padrão
+          </button>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -90,10 +220,12 @@ function MessageList({
   mensagens,
   currentUserId,
   chamadoId,
+  corFundo,
 }: {
   mensagens: Mensagem[];
   currentUserId: string;
   chamadoId: string;
+  corFundo: string;
 }) {
   const bottomRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -101,7 +233,10 @@ function MessageList({
   }, [mensagens.length]);
 
   return (
-    <div className="mb-3 max-h-80 space-y-4 overflow-y-auto rounded-md border bg-muted/20 p-3">
+    <div
+      className="mb-3 max-h-80 space-y-4 overflow-y-auto rounded-md border p-3"
+      style={{ backgroundColor: corFundo }}
+    >
       {mensagens.length === 0 && (
         <p className="text-sm text-muted-foreground">Nenhuma mensagem ainda.</p>
       )}
@@ -366,11 +501,30 @@ function MessageForm({ chamadoId }: { chamadoId: string }) {
     formRef.current?.requestSubmit();
   }
 
+  function enviarRapido(texto: string) {
+    const textarea = formRef.current?.elements.namedItem("texto") as HTMLTextAreaElement | null;
+    if (!textarea) return;
+    const setter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, "value")!.set!;
+    setter.call(textarea, texto);
+    formRef.current?.requestSubmit();
+  }
+
   return (
     <form ref={formRef} action={formAction} className="space-y-2" onKeyDown={handleFormKeyDown}>
       <input type="hidden" name="chamadoId" value={chamadoId} />
       <Textarea name="texto" rows={2} placeholder="Mensagem..." />
-      <AnexosField key={anexosKey} compact />
+      <div className="flex items-start justify-between gap-2">
+        <AnexosField key={anexosKey} compact />
+        <button
+          type="button"
+          title="Responder com 👍"
+          disabled={pending}
+          onClick={() => enviarRapido("👍")}
+          className="flex size-8 shrink-0 items-center justify-center rounded-lg border text-base leading-none hover:bg-muted disabled:opacity-50"
+        >
+          👍
+        </button>
+      </div>
       {state?.error && <p className="text-sm text-destructive">{state.error}</p>}
       <Button type="submit" size="sm" disabled={pending}>
         {pending ? "Enviando..." : "Enviar"}
