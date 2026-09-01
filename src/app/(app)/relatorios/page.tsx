@@ -217,11 +217,11 @@ export default async function RelatoriosPage({
       />
 
       <ReportCard
-        title="Produtividade por operador"
+        title="Produtividade por responsável"
         icon={Users}
         color="cyan"
         headers={[
-          "Operador",
+          "Responsável",
           "Atribuídos",
           "Finalizados",
           "1ª resposta (corrido)",
@@ -238,7 +238,7 @@ export default async function RelatoriosPage({
           fmtHoras(o.tempoMedioResolucao?.totalHoras ?? null),
           fmtHoras(o.tempoMedioResolucao?.utilHoras ?? null),
         ])}
-        csvFilename="produtividade-por-operador"
+        csvFilename="produtividade-por-responsavel"
         sp={sp}
       />
 
