@@ -145,6 +145,7 @@ export default async function MonitoramentoPage({
     ? pdvStats.filter((v) => pdvIdsFiltroVisao.includes(v.pdv.id))
     : pdvStats;
   const maxPdvStatsTotal = Math.max(1, ...pdvStatsFiltrado.map((v) => v.total));
+  const somaPdvStatsTotal = pdvStatsFiltrado.reduce((acc, v) => acc + v.total, 0);
 
   const rowsParaRankingPdv = filtrarPorPdv("rankingPdvF");
   const rankingPdv = porPdv(rowsParaRankingPdv, new Map()).slice(0, 5);
@@ -337,6 +338,8 @@ export default async function MonitoramentoPage({
                   </Link>
                   <span className="text-muted-foreground">
                     {v.total} chamado(s){v.vencidos > 0 && ` · ${v.vencidos} vencido(s)`}
+                    {" · "}
+                    {somaPdvStatsTotal > 0 ? Math.round((v.total / somaPdvStatsTotal) * 100) : 0}%
                   </span>
                 </div>
                 {v.total > 0 ? (
