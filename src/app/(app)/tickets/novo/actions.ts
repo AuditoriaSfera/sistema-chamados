@@ -11,16 +11,20 @@ import {
 } from "@/lib/tickets";
 import { validateAnexo, saveAnexo } from "@/lib/uploads";
 import { ANEXO_MAX_QUANTIDADE } from "@/lib/constants";
+import { capitalizarNome } from "@/lib/utils";
 import { redirect } from "next/navigation";
 import { z } from "zod";
+
+const APENAS_NUMEROS = /^\d+$/;
 
 const schema = z.object({
   servicoId: z.string().min(1),
   pdvId: z.string().min(1),
-  numeroPedido: z.string().min(1),
-  nomeCliente: z.string().min(1),
-  codigoRevendedor: z.string().min(1),
-  nomeSolicitante: z.string().min(1),
+  numeroPedido: z.string().regex(APENAS_NUMEROS, "Número do pedido: apenas números, sem pontos ou letras."),
+  nomeCliente: z.string().min(1).transform(capitalizarNome),
+  codigoRevendedor: z
+    .string()
+    .regex(APENAS_NUMEROS, "Código do revendedor: apenas números, sem pontos ou letras."),
   motivoLivre: z.string().min(1),
   confirmarDuplicado: z.string().optional(),
 });
@@ -43,11 +47,12 @@ export async function createChamado(
     numeroPedido: formData.get("numeroPedido"),
     nomeCliente: formData.get("nomeCliente"),
     codigoRevendedor: formData.get("codigoRevendedor"),
-    nomeSolicitante: formData.get("nomeSolicitante"),
     motivoLivre: formData.get("motivoLivre"),
     confirmarDuplicado: formData.get("confirmarDuplicado") || undefined,
   });
-  if (!parsed.success) return { error: "Preencha todos os campos obrigatórios." };
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Preencha todos os campos obrigatórios." };
+  }
   const data = parsed.data;
 
   const servico = await prisma.servico.findUnique({ where: { id: data.servicoId } });
@@ -100,7 +105,7 @@ export async function createChamado(
       pdvId: pdv.id,
       servicoId: servico.id,
       motivoLivre: data.motivoLivre,
-      nomeSolicitante: data.nomeSolicitante,
+      nomeSolicitante: user.nome,
       abertoPorId: user.id,
       responsavelId,
       slaPresetId: servico.slaPresetId,

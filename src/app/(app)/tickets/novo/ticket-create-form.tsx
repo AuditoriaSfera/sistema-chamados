@@ -18,6 +18,9 @@ import {
 import { ANEXO_MAX_QUANTIDADE } from "@/lib/constants";
 import { formatarDuracaoSla } from "@/lib/sla-format";
 import { AnexosField } from "@/components/anexos-field";
+import { capitalizarNome } from "@/lib/utils";
+
+const apenasDigitos = (v: string) => v.replace(/\D/g, "");
 
 type Servico = {
   id: string;
@@ -88,9 +91,6 @@ export function TicketCreateForm({
           <Label>2. Quem está abrindo o chamado</Label>
           <Input value={abertoPorEmail} disabled />
           <p className="text-xs text-muted-foreground">{abertoPorNome}</p>
-
-          <Label htmlFor="nomeSolicitante">Nome do solicitante</Label>
-          <Input id="nomeSolicitante" name="nomeSolicitante" required />
         </CardContent>
       </Card>
 
@@ -122,13 +122,38 @@ export function TicketCreateForm({
       <Card>
         <CardContent className="pt-6 space-y-3">
           <Label htmlFor="nomeCliente">4. Nome do revendedor</Label>
-          <Input id="nomeCliente" name="nomeCliente" required />
+          <Input
+            id="nomeCliente"
+            name="nomeCliente"
+            required
+            onBlur={(e) => {
+              e.target.value = capitalizarNome(e.target.value);
+            }}
+          />
 
           <Label htmlFor="codigoRevendedor">Código do revendedor</Label>
-          <Input id="codigoRevendedor" name="codigoRevendedor" required />
+          <Input
+            id="codigoRevendedor"
+            name="codigoRevendedor"
+            required
+            inputMode="numeric"
+            placeholder="Somente números"
+            onChange={(e) => {
+              e.target.value = apenasDigitos(e.target.value);
+            }}
+          />
 
           <Label htmlFor="numeroPedido">Número do pedido</Label>
-          <Input id="numeroPedido" name="numeroPedido" required />
+          <Input
+            id="numeroPedido"
+            name="numeroPedido"
+            required
+            inputMode="numeric"
+            placeholder="Somente números"
+            onChange={(e) => {
+              e.target.value = apenasDigitos(e.target.value);
+            }}
+          />
         </CardContent>
       </Card>
 
