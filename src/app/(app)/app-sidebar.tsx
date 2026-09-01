@@ -99,7 +99,14 @@ export function AppSidebar({
           collapsed ? "flex-col px-0" : "justify-between px-1"
         )}
       >
-        <div className={cn("flex items-center gap-2.5", collapsed && "flex-col")}>
+        <Link
+          href="/tickets"
+          title="Ir para Chamados"
+          className={cn(
+            "flex items-center gap-2.5 rounded-lg hover:opacity-80",
+            collapsed && "flex-col"
+          )}
+        >
           <img src="/logo-s.png" alt="" className="size-8 shrink-0" />
           {!collapsed && (
             <div className="min-w-0">
@@ -109,7 +116,7 @@ export function AppSidebar({
               <p className="text-xs text-sidebar-foreground/50">Logística</p>
             </div>
           )}
-        </div>
+        </Link>
 
         <button
           type="button"
