@@ -49,6 +49,13 @@ export function TicketCreateForm({
   const [descricao, setDescricao] = useState("");
   const [descricaoDirty, setDescricaoDirty] = useState(false);
   const [servicoIdProcessado, setServicoIdProcessado] = useState(servicoId);
+  // Controlados pra sobreviver ao aviso de duplicidade: o React reseta os
+  // inputs não-controlados do formulário depois de qualquer retorno da action
+  // que não seja um redirect — inclusive o retorno de "chamado duplicado",
+  // que não deveria apagar o que a pessoa já preencheu.
+  const [nomeCliente, setNomeCliente] = useState("");
+  const [codigoRevendedor, setCodigoRevendedor] = useState("");
+  const [numeroPedido, setNumeroPedido] = useState("");
 
   const servicoSelecionado = useMemo(
     () => servicos.find((s) => s.id === servicoId),
@@ -126,9 +133,9 @@ export function TicketCreateForm({
             id="nomeCliente"
             name="nomeCliente"
             required
-            onBlur={(e) => {
-              e.target.value = capitalizarNome(e.target.value);
-            }}
+            value={nomeCliente}
+            onChange={(e) => setNomeCliente(e.target.value)}
+            onBlur={(e) => setNomeCliente(capitalizarNome(e.target.value))}
           />
 
           <Label htmlFor="codigoRevendedor">Código do revendedor</Label>
@@ -138,9 +145,8 @@ export function TicketCreateForm({
             required
             inputMode="numeric"
             placeholder="Somente números"
-            onChange={(e) => {
-              e.target.value = apenasDigitos(e.target.value);
-            }}
+            value={codigoRevendedor}
+            onChange={(e) => setCodigoRevendedor(apenasDigitos(e.target.value))}
           />
 
           <Label htmlFor="numeroPedido">Número do pedido</Label>
@@ -150,9 +156,8 @@ export function TicketCreateForm({
             required
             inputMode="numeric"
             placeholder="Somente números"
-            onChange={(e) => {
-              e.target.value = apenasDigitos(e.target.value);
-            }}
+            value={numeroPedido}
+            onChange={(e) => setNumeroPedido(apenasDigitos(e.target.value))}
           />
         </CardContent>
       </Card>
