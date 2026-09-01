@@ -513,7 +513,7 @@ function MessageForm({ chamadoId }: { chamadoId: string }) {
     <form ref={formRef} action={formAction} className="space-y-2" onKeyDown={handleFormKeyDown}>
       <input type="hidden" name="chamadoId" value={chamadoId} />
       <Textarea name="texto" rows={2} placeholder="Mensagem..." />
-      <div className="flex items-start justify-between gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <AnexosField key={anexosKey} compact />
         <button
           type="button"
