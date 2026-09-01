@@ -24,6 +24,7 @@ import { MultiSelectFilter } from "@/components/multi-select-filter";
 import { StickyHorizontalScrollbar } from "@/components/sticky-horizontal-scrollbar";
 import { TicketFilters } from "./ticket-filters";
 import { ClearNovoParam } from "./clear-novo-param";
+import { AutoRefresh } from "@/components/auto-refresh";
 import { cn } from "@/lib/utils";
 
 const PAGE_SIZE = 100;
@@ -204,6 +205,7 @@ export default async function TicketsPage({
 
   return (
     <div className="space-y-6">
+      <AutoRefresh intervalMs={5000} />
       <ClearNovoParam active={!!destaqueId} />
       <div className="flex items-center justify-between">
         <div>
