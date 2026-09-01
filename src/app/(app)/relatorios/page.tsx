@@ -63,7 +63,7 @@ export default async function RelatoriosPage({
 
   const where = buildChamadoWhere(user, sp);
 
-  const [chamados, todosPdvs, servicos] = await Promise.all([
+  const [chamados, todosPdvs, servicos, usuarios, perfis] = await Promise.all([
     prisma.chamado.findMany({
       where,
       orderBy: { createdAt: "desc" },
@@ -87,9 +87,15 @@ export default async function RelatoriosPage({
     }),
     prisma.pdv.findMany({ orderBy: { codigo: "asc" } }),
     prisma.servico.findMany({ orderBy: { nome: "asc" } }),
+    prisma.usuario.findMany({ orderBy: { nome: "asc" } }),
+    prisma.perfilAcesso.findMany(),
   ]);
 
   const rows = chamados as unknown as ChamadoReportRow[];
+
+  const perfilMap = new Map(perfis.map((p) => [p.id, p]));
+  const solicitantesFiltro = usuarios.filter((u) => perfilMap.get(u.perfil)?.podeAbrirChamado);
+  const operadoresFiltro = usuarios.filter((u) => perfilMap.get(u.perfil)?.podeAlterarStatus);
 
   const pdvIdsComChamado = [...new Set(rows.map((c) => c.pdv.id))];
   const [horariosPorPdv, feriadosPorPdv] = pdvIdsComChamado.length
@@ -131,7 +137,13 @@ export default async function RelatoriosPage({
         </p>
       </div>
 
-      <ReportFilters pdvs={todosPdvs} servicos={servicos} searchParams={sp} />
+      <ReportFilters
+        pdvs={todosPdvs}
+        servicos={servicos}
+        solicitantes={solicitantesFiltro}
+        operadores={operadoresFiltro}
+        searchParams={sp}
+      />
 
       <div className="grid grid-cols-5 gap-4">
         <SummaryCard label="Total de chamados" icon={Inbox} color="blue">

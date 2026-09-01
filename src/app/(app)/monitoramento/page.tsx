@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/session";
-import { buildChamadoWhere } from "@/lib/tickets";
+import { buildChamadoWhere, SEM_RESPONSAVEL_VALUE } from "@/lib/tickets";
 import { getVisiblePdvIds } from "@/lib/permissions";
+import { DateRangeFilter } from "@/components/date-range-filter";
 import {
   type CalendarioPorPdv,
   type ChamadoReportRow,
@@ -66,9 +67,9 @@ export default async function MonitoramentoPage({
   const user = await requireUser();
   const sp = await searchParams;
 
-  const where = buildChamadoWhere(user, {});
+  const where = buildChamadoWhere(user, sp);
 
-  const [chamados, todosPdvs, slaCritico, statusesAtivos] = await Promise.all([
+  const [chamados, todosPdvs, slaCritico, statusesAtivos, usuarios, perfis] = await Promise.all([
     prisma.chamado.findMany({
       where,
       select: {
@@ -92,6 +93,8 @@ export default async function MonitoramentoPage({
     prisma.pdv.findMany({ orderBy: { codigo: "asc" } }),
     prisma.slaPreset.findFirst({ where: { critica: true } }),
     prisma.status.findMany({ where: { ativo: true }, orderBy: { ordem: "asc" } }),
+    prisma.usuario.findMany({ orderBy: { nome: "asc" } }),
+    prisma.perfilAcesso.findMany(),
   ]);
 
   const rows = chamados as unknown as ChamadoReportRow[];
@@ -99,6 +102,10 @@ export default async function MonitoramentoPage({
   const visiblePdvIds = getVisiblePdvIds(user);
   const pdvsNoEscopo =
     visiblePdvIds === null ? todosPdvs : todosPdvs.filter((pdv) => visiblePdvIds.includes(pdv.id));
+
+  const perfilMap = new Map(perfis.map((p) => [p.id, p]));
+  const solicitantes = usuarios.filter((u) => perfilMap.get(u.perfil)?.podeAbrirChamado);
+  const operadores = usuarios.filter((u) => perfilMap.get(u.perfil)?.podeAlterarStatus);
 
   const ativos = rows.filter((c) => !STATUS_FINAIS.includes(c.status));
   const hoje = hojeISO();
@@ -300,6 +307,47 @@ export default async function MonitoramentoPage({
         <h1 className="text-xl font-semibold">Monitoramento</h1>
         <p className="text-sm text-muted-foreground">Estado atual dos chamados no seu escopo</p>
       </div>
+
+      <Card>
+        <CardContent className="space-y-4 pt-6">
+          <div className="flex flex-wrap items-end gap-4">
+            <div className="space-y-1">
+              <label className="text-xs text-muted-foreground">PDV</label>
+              <div className="flex h-9 items-center rounded-md border border-input px-3">
+                <MultiSelectFilter
+                  paramName="pdvId"
+                  label="Todos"
+                  options={pdvsNoEscopo.map((pdv) => ({ value: pdv.id, label: pdv.codigo }))}
+                />
+              </div>
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs text-muted-foreground">Solicitante</label>
+              <div className="flex h-9 items-center rounded-md border border-input px-3">
+                <MultiSelectFilter
+                  paramName="solicitanteId"
+                  label="Todos"
+                  options={solicitantes.map((u) => ({ value: u.id, label: u.nome }))}
+                />
+              </div>
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs text-muted-foreground">Responsável</label>
+              <div className="flex h-9 items-center rounded-md border border-input px-3">
+                <MultiSelectFilter
+                  paramName="operadorId"
+                  label="Todos"
+                  options={[
+                    { value: SEM_RESPONSAVEL_VALUE, label: "Sem responsável" },
+                    ...operadores.map((u) => ({ value: u.id, label: u.nome })),
+                  ]}
+                />
+              </div>
+            </div>
+          </div>
+          <DateRangeFilter basePath="/monitoramento" sp={sp} />
+        </CardContent>
+      </Card>
 
       <div className="grid grid-cols-6 gap-4">
         {cards.map((c) => (
