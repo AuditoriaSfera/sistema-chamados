@@ -125,7 +125,7 @@ export default async function MonitoramentoPage({
       cor: cor as "verde" | "amarelo" | "vermelho",
       porStatus,
     };
-  });
+  }).sort((a, b) => b.total - a.total);
 
   const pdvIdsFiltroStatus = parseMulti(sp.statusPdv);
   const chamadosParaStatus = pdvIdsFiltroStatus
@@ -144,6 +144,7 @@ export default async function MonitoramentoPage({
   const pdvStatsFiltrado = pdvIdsFiltroVisao
     ? pdvStats.filter((v) => pdvIdsFiltroVisao.includes(v.pdv.id))
     : pdvStats;
+  const maxPdvStatsTotal = Math.max(1, ...pdvStatsFiltrado.map((v) => v.total));
 
   const rowsParaRankingPdv = filtrarPorPdv("rankingPdvF");
   const rankingPdv = porPdv(rowsParaRankingPdv, new Map()).slice(0, 5);
@@ -339,15 +340,20 @@ export default async function MonitoramentoPage({
                   </span>
                 </div>
                 {v.total > 0 ? (
-                  <div className="flex h-2.5 w-full overflow-hidden rounded-full bg-muted">
-                    {v.porStatus.map(({ status, total }) => (
-                      <div
-                        key={status.id}
-                        className={cn(corDotClasses(status.cor), "h-full")}
-                        style={{ width: `${(total / v.total) * 100}%` }}
-                        title={`${status.nome}: ${total}`}
-                      />
-                    ))}
+                  <div className="h-2.5 w-full overflow-hidden rounded-full bg-muted">
+                    <div
+                      className="flex h-full overflow-hidden rounded-full"
+                      style={{ width: `${(v.total / maxPdvStatsTotal) * 100}%` }}
+                    >
+                      {v.porStatus.map(({ status, total }) => (
+                        <div
+                          key={status.id}
+                          className={cn(corDotClasses(status.cor), "h-full")}
+                          style={{ width: `${(total / v.total) * 100}%` }}
+                          title={`${status.nome}: ${total}`}
+                        />
+                      ))}
+                    </div>
                   </div>
                 ) : (
                   <div className="h-2.5 w-full rounded-full bg-muted" />
