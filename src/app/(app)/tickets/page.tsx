@@ -326,7 +326,6 @@ export default async function TicketsPage({
                   Finalizado em
                 </SortableHead>
                 <TableHead className="text-center">SLA (Total / Útil)</TableHead>
-                <TableHead className="text-center">Abrir</TableHead>
                 <TableHead className="text-center">Assumir</TableHead>
                 <TableHead className="text-center">
                   <MultiSelectFilter
@@ -338,6 +337,7 @@ export default async function TicketsPage({
                     ]}
                   />
                 </TableHead>
+                <TableHead className="text-center">Abrir</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -422,15 +422,6 @@ export default async function TicketsPage({
                       )}
                     </TableCell>
                     <TableCell className="text-center">
-                      <Link
-                        href={`/tickets/${c.id}`}
-                        title="Abrir chamado"
-                        className="inline-flex items-center justify-center text-muted-foreground hover:text-foreground"
-                      >
-                        <ExternalLink className="size-4" />
-                      </Link>
-                    </TableCell>
-                    <TableCell className="text-center">
                       {c.responsavelId ? (
                         <span
                           title={`Assumido por ${c.responsavel?.nome ?? "alguém"}`}
@@ -446,6 +437,15 @@ export default async function TicketsPage({
                       {c.responsavel?.nome ?? (
                         <span className="text-muted-foreground">sem responsável</span>
                       )}
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <Link
+                        href={`/tickets/${c.id}`}
+                        title="Abrir chamado"
+                        className="inline-flex items-center justify-center text-muted-foreground hover:text-foreground"
+                      >
+                        <ExternalLink className="size-4" />
+                      </Link>
                     </TableCell>
                   </TableRow>
                 );
