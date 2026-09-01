@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { MessageCircle, ArrowUp, ArrowDown, ArrowUpDown, ExternalLink } from "lucide-react";
+import { MessageCircle, ArrowUp, ArrowDown, ArrowUpDown, ExternalLink, UserCheck } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/session";
 import {
@@ -434,8 +434,15 @@ export default async function TicketsPage({
                       </Link>
                     </TableCell>
                     <TableCell className="text-center">
-                      {!c.responsavelId && canChangeStatus(user) && (
-                        <AssumirIconButton chamadoId={c.id} />
+                      {c.responsavelId ? (
+                        <span
+                          title={`Assumido por ${c.responsavel?.nome ?? "alguém"}`}
+                          className="inline-flex items-center justify-center text-emerald-600 dark:text-emerald-400"
+                        >
+                          <UserCheck className="size-4" />
+                        </span>
+                      ) : (
+                        canChangeStatus(user) && <AssumirIconButton chamadoId={c.id} />
                       )}
                     </TableCell>
                   </TableRow>
