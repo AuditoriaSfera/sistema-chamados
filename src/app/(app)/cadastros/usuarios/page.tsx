@@ -4,6 +4,7 @@ import { requireAdmin } from "@/lib/session";
 import { isPerfilAdministrativo, podeGerenciarAlvo } from "@/lib/permissions";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { corBadgeClasses, corDotClasses } from "@/lib/color-palette";
 import { Card, CardContent } from "@/components/ui/card";
 import { MultiSelectFilter } from "@/components/multi-select-filter";
 import { SortableHead, SortToggle } from "@/components/sortable-head";
@@ -131,7 +132,21 @@ export default async function UsuariosPage({
                     </Link>
                   </TableCell>
                   <TableCell className="text-xs">{u.email}</TableCell>
-                  <TableCell>{perfilMap.get(u.perfil)?.nome ?? "—"}</TableCell>
+                  <TableCell>
+                    {(() => {
+                      const perfil = perfilMap.get(u.perfil);
+                      return perfil ? (
+                        <Badge variant="outline" className={corBadgeClasses(perfil.cor)}>
+                          <span
+                            className={`mr-1 inline-block size-2 rounded-full ${corDotClasses(perfil.cor)}`}
+                          />
+                          {perfil.nome}
+                        </Badge>
+                      ) : (
+                        "—"
+                      );
+                    })()}
+                  </TableCell>
                   <TableCell className="text-xs">
                     <div className="flex items-center gap-1.5">
                       <span title={u.pdvVinculos.map((v) => v.pdv.codigo).join(", ")}>
