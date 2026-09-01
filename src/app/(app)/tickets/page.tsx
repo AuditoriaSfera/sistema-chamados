@@ -318,16 +318,6 @@ export default async function TicketsPage({
                     <SortToggle sp={sp} campo="status" />
                   </div>
                 </TableHead>
-                <TableHead className="text-center">
-                  <MultiSelectFilter
-                    paramName="operadorId"
-                    label="Responsável"
-                    options={[
-                      { value: SEM_RESPONSAVEL_VALUE, label: "Sem responsável" },
-                      ...operadores.map((u) => ({ value: u.id, label: u.nome })),
-                    ]}
-                  />
-                </TableHead>
                 <TableHead className="text-center">Mensagens</TableHead>
                 <SortableHead sp={sp} campo="createdAt">
                   Aberto em
@@ -338,6 +328,16 @@ export default async function TicketsPage({
                 <TableHead className="text-center">SLA (Total / Útil)</TableHead>
                 <TableHead className="text-center">Abrir</TableHead>
                 <TableHead className="text-center">Assumir</TableHead>
+                <TableHead className="text-center">
+                  <MultiSelectFilter
+                    paramName="operadorId"
+                    label="Responsável"
+                    options={[
+                      { value: SEM_RESPONSAVEL_VALUE, label: "Sem responsável" },
+                      ...operadores.map((u) => ({ value: u.id, label: u.nome })),
+                    ]}
+                  />
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -393,11 +393,6 @@ export default async function TicketsPage({
                     <TableCell className="text-center">
                       <StatusBadge nome={statusInfo(c.status).nome} cor={statusInfo(c.status).cor} />
                     </TableCell>
-                    <TableCell className="text-center text-sm">
-                      {c.responsavel?.nome ?? (
-                        <span className="text-muted-foreground">sem responsável</span>
-                      )}
-                    </TableCell>
                     <TableCell className="text-center">
                       <Link
                         href={`/tickets/${c.id}`}
@@ -445,6 +440,11 @@ export default async function TicketsPage({
                         </span>
                       ) : (
                         canChangeStatus(user) && <AssumirIconButton chamadoId={c.id} />
+                      )}
+                    </TableCell>
+                    <TableCell className="text-center text-sm">
+                      {c.responsavel?.nome ?? (
+                        <span className="text-muted-foreground">sem responsável</span>
                       )}
                     </TableCell>
                   </TableRow>
