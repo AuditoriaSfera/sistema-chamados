@@ -15,7 +15,7 @@ export default async function LoginPage({
         <div className="space-y-2 text-center">
           <img src="/logo-s.png" alt="" className="mx-auto size-14" />
           <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-            Sistema de Chamados
+            Sfera Chamados
           </h1>
           <p className="text-sm text-muted-foreground">Logística · Sfera Multifranquias</p>
         </div>

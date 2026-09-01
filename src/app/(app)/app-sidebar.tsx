@@ -111,7 +111,7 @@ export function AppSidebar({
           {!collapsed && (
             <div className="min-w-0">
               <p className="truncate text-sm font-semibold text-sidebar-foreground leading-tight">
-                Sistema de Chamados
+                Sfera Chamados
               </p>
               <p className="text-xs text-sidebar-foreground/50">Logística</p>
             </div>

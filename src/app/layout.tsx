@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Sistema de Chamados — Logística",
+  title: "Sfera Chamados — Logística",
   description: "Chamados de logística: Revendedor → Supervisão → VD",
 };
 

@@ -98,17 +98,17 @@ export async function enviarEmailRecuperacao(
 ) {
   // A origem vem do ambiente, nunca de quem chamou — ver o comentário em app-url.ts.
   const link = `${appUrl()}/redefinir-senha/${token}`;
-  const assunto = "Redefinição de senha — Sistema de Chamados";
+  const assunto = "Redefinição de senha — Sfera Chamados";
   const corpoTexto =
     `Olá, ${nome}.\n\n` +
-    `Recebemos um pedido para redefinir sua senha no Sistema de Chamados.\n` +
+    `Recebemos um pedido para redefinir sua senha no Sfera Chamados.\n` +
     `Acesse o link abaixo para escolher uma nova senha:\n\n${link}\n\n` +
     `O link vale por ${VALIDADE_MINUTOS} minutos e só pode ser usado uma vez.\n` +
     `Se não foi você que pediu, ignore esta mensagem — sua senha atual continua valendo.`;
   const corpoHtml = `
     <div style="font-family:system-ui,-apple-system,Segoe UI,sans-serif;font-size:15px;color:#1f2937;line-height:1.6">
       <p>Olá, ${escapeHtml(nome)}.</p>
-      <p>Recebemos um pedido para redefinir sua senha no <strong>Sistema de Chamados</strong>.</p>
+      <p>Recebemos um pedido para redefinir sua senha no <strong>Sfera Chamados</strong>.</p>
       <p style="margin:28px 0">
         <a href="${link}" style="background:#1d4ed8;color:#fff;padding:12px 22px;border-radius:8px;text-decoration:none;display:inline-block">
           Escolher nova senha
