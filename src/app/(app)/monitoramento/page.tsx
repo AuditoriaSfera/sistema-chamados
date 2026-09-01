@@ -522,7 +522,7 @@ export default async function MonitoramentoPage({
               <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-cyan-500/15 text-cyan-600 dark:text-cyan-400">
                 <Users className="size-4" />
               </span>
-              <CardTitle className="text-base">Chamados por operador</CardTitle>
+              <CardTitle className="text-base">Chamados por responsável</CardTitle>
             </div>
             <MultiSelectFilter
               paramName="operadorPdv"
