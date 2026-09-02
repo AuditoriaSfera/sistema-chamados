@@ -78,6 +78,13 @@ export function UsuarioCreateForm({
             placeholder="Nome, número ou e-mail"
             required
             autoComplete="off"
+            // O Chrome ignora autoComplete="off" em campos que parecem login e
+            // preenche sozinho com uma credencial salva (ex.: a do admin
+            // logado) — inclusive depois da sugestão já estar preenchida.
+            // Campo somente-leitura até o primeiro foco: o Chrome decide se
+            // autopreenche olhando o DOM nesse momento, então ele nem tenta.
+            readOnly
+            onFocus={(e) => e.currentTarget.removeAttribute("readonly")}
             // Só conta como edição manual quando é o próprio usuário digitando ou
             // colando — o autofill do navegador dispara "onChange" mas não essas
             // duas, então não trava a sugestão antes de o admin realmente mexer.
