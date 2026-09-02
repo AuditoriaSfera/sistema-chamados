@@ -37,19 +37,22 @@ async function exigirAlvoGerenciavel(ator: SessionUser, usuarioId: string) {
   if (erro) throw new Error(erro);
 }
 
-// Telefone: aceita formatos brasileiros comuns, com ou sem máscara.
+// Telefone e e-mail de contato são opcionais — quando preenchidos, ainda
+// precisam ter um formato válido. Aceita formatos brasileiros comuns, com
+// ou sem máscara.
 const telefoneSchema = z
   .string()
-  .min(1, "Informe o telefone de contato.")
-  .refine((v) => v.replace(/\D/g, "").length >= 10, {
+  .transform((v) => v.trim() || undefined)
+  .refine((v) => v === undefined || v.replace(/\D/g, "").length >= 10, {
     message: "Telefone incompleto — inclua o DDD.",
   });
 
 const emailContatoSchema = z
   .string()
-  .min(1, "Informe o e-mail de contato.")
-  .email("E-mail de contato inválido.")
-  .transform((v) => v.trim().toLowerCase());
+  .transform((v) => v.trim().toLowerCase() || undefined)
+  .refine((v) => v === undefined || z.string().email().safeParse(v).success, {
+    message: "E-mail de contato inválido.",
+  });
 
 const usuarioSchema = z.object({
   nome: z.string().min(1),
@@ -82,14 +85,19 @@ export async function createUsuario(
   if (!podeGerenciarAlvo(admin, perfilValido)) return { error: ERRO_PERFIL_ADMIN };
 
   // o login e o e-mail entram no mesmo campo na tela de login, então nenhum dos
-  // dois pode colidir com o do outro usuário
+  // dois pode colidir com o do outro usuário. Sem e-mail de contato informado,
+  // só as condições que independem dele fazem sentido.
   const exists = await prisma.usuario.findFirst({
     where: {
       OR: [
         { email: { equals: parsed.data.email, mode: "insensitive" } },
-        { email: { equals: parsed.data.emailContato, mode: "insensitive" } },
         { emailContato: { equals: parsed.data.email, mode: "insensitive" } },
-        { emailContato: { equals: parsed.data.emailContato, mode: "insensitive" } },
+        ...(parsed.data.emailContato
+          ? [
+              { email: { equals: parsed.data.emailContato, mode: "insensitive" as const } },
+              { emailContato: { equals: parsed.data.emailContato, mode: "insensitive" as const } },
+            ]
+          : []),
       ],
     },
   });
@@ -100,8 +108,8 @@ export async function createUsuario(
     data: {
       nome: parsed.data.nome,
       email: parsed.data.email,
-      emailContato: parsed.data.emailContato,
-      telefone: parsed.data.telefone,
+      emailContato: parsed.data.emailContato ?? null,
+      telefone: parsed.data.telefone ?? null,
       senhaHash,
       perfil: parsed.data.perfil,
       senhaProvisoria: true,
@@ -171,9 +179,13 @@ export async function updateUsuario(
       NOT: { id: usuarioId },
       OR: [
         { email: { equals: parsed.data.email, mode: "insensitive" } },
-        { email: { equals: parsed.data.emailContato, mode: "insensitive" } },
         { emailContato: { equals: parsed.data.email, mode: "insensitive" } },
-        { emailContato: { equals: parsed.data.emailContato, mode: "insensitive" } },
+        ...(parsed.data.emailContato
+          ? [
+              { email: { equals: parsed.data.emailContato, mode: "insensitive" as const } },
+              { emailContato: { equals: parsed.data.emailContato, mode: "insensitive" as const } },
+            ]
+          : []),
       ],
     },
   });
@@ -182,15 +194,15 @@ export async function updateUsuario(
   const data: {
     nome: string;
     email: string;
-    emailContato: string;
-    telefone: string;
+    emailContato: string | null;
+    telefone: string | null;
     perfil: string;
     senhaHash?: string;
   } = {
     nome: parsed.data.nome,
     email: parsed.data.email,
-    emailContato: parsed.data.emailContato,
-    telefone: parsed.data.telefone,
+    emailContato: parsed.data.emailContato ?? null,
+    telefone: parsed.data.telefone ?? null,
     perfil: parsed.data.perfil,
   };
   if (parsed.data.senha) data.senhaHash = await bcrypt.hash(parsed.data.senha, 10);

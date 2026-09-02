@@ -66,25 +66,23 @@ export function EditarUsuarioDialog({
             <Input id="edit-email" name="email" type="text" defaultValue={usuario.email} required />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="edit-emailContato">E-mail de contato</Label>
+            <Label htmlFor="edit-emailContato">E-mail de contato (opcional)</Label>
             <Input
               id="edit-emailContato"
               name="emailContato"
               type="email"
               defaultValue={usuario.emailContato ?? ""}
               placeholder="nome@sferamultifranquias.com"
-              required
             />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="edit-telefone">Telefone de contato</Label>
+            <Label htmlFor="edit-telefone">Telefone de contato (opcional)</Label>
             <Input
               id="edit-telefone"
               name="telefone"
               type="tel"
               defaultValue={usuario.telefone ?? ""}
               placeholder="(11) 91234-5678"
-              required
             />
           </div>
           <div className="space-y-1.5">

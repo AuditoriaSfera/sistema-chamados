@@ -14,6 +14,23 @@ import {
 } from "@/components/ui/select";
 type Perfil = { id: string; nome: string };
 
+const CONECTORES = new Set(["de", "da", "do", "das", "dos", "e"]);
+const MARCAS_DIACRITICAS = new RegExp("[\\u0300-\\u036f]", "g");
+
+/** "João da Silva" -> "joao.silva" — sugestão de usuário a partir do nome. */
+function sugerirUsuario(nome: string): string {
+  const palavras = nome
+    .normalize("NFD")
+    .replace(MARCAS_DIACRITICAS, "")
+    .toLowerCase()
+    .split(/\s+/)
+    .filter((p) => /^[a-z]+$/.test(p));
+  if (palavras.length === 0) return "";
+  const [primeiro, ...resto] = palavras;
+  const sobrenome = resto.filter((p) => !CONECTORES.has(p)).pop();
+  return sobrenome ? `${primeiro}.${sobrenome}` : primeiro;
+}
+
 export function UsuarioCreateForm({
   perfis,
   onSuccess,
@@ -23,10 +40,13 @@ export function UsuarioCreateForm({
 }) {
   const [state, formAction, pending] = useActionState(createUsuario, undefined);
   const formRef = useRef<HTMLFormElement>(null);
+  const usuarioInputRef = useRef<HTMLInputElement>(null);
+  const usuarioEditadoManualmente = useRef(false);
 
   useEffect(() => {
     if (state && !state.error) {
       formRef.current?.reset();
+      usuarioEditadoManualmente.current = false;
       onSuccess?.();
     }
   }, [state, onSuccess]);
@@ -36,27 +56,45 @@ export function UsuarioCreateForm({
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1.5">
           <Label htmlFor="nome">Nome</Label>
-          <Input id="nome" name="nome" required />
+          <Input
+            id="nome"
+            name="nome"
+            required
+            onChange={(e) => {
+              if (!usuarioEditadoManualmente.current && usuarioInputRef.current) {
+                usuarioInputRef.current.value = sugerirUsuario(e.target.value);
+              }
+            }}
+          />
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="email">Usuário</Label>
-          <Input id="email" name="email" type="text" placeholder="Nome, número ou e-mail" required />
+          <Input
+            ref={usuarioInputRef}
+            id="email"
+            name="email"
+            type="text"
+            placeholder="Nome, número ou e-mail"
+            required
+            onChange={() => {
+              usuarioEditadoManualmente.current = true;
+            }}
+          />
         </div>
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1.5">
-          <Label htmlFor="emailContato">E-mail de contato</Label>
+          <Label htmlFor="emailContato">E-mail de contato (opcional)</Label>
           <Input
             id="emailContato"
             name="emailContato"
             type="email"
             placeholder="nome@sferamultifranquias.com"
-            required
           />
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="telefone">Telefone de contato</Label>
-          <Input id="telefone" name="telefone" type="tel" placeholder="(11) 91234-5678" required />
+          <Label htmlFor="telefone">Telefone de contato (opcional)</Label>
+          <Input id="telefone" name="telefone" type="tel" placeholder="(11) 91234-5678" />
         </div>
       </div>
       <div className="grid grid-cols-2 gap-3">
@@ -90,10 +128,10 @@ export function UsuarioCreateForm({
       </Button>
       {state?.error && <p className="text-sm text-destructive">{state.error}</p>}
       <p className="text-xs text-muted-foreground">
-        O e-mail de contato serve para recuperar a senha e também funciona como login.
-        O usuário precisará trocar essa senha no primeiro acesso. Vínculo com PDV(s) e
-        visibilidade de chamados da equipe são configurados depois, na página de detalhe do
-        usuário.
+        O usuário precisará trocar essa senha no primeiro acesso. E-mail e telefone de contato
+        são opcionais e, quando informados, também servem para recuperar a senha. Vínculo com
+        PDV(s) e visibilidade de chamados da equipe são configurados depois, na página de
+        detalhe do usuário.
       </p>
     </form>
   );
