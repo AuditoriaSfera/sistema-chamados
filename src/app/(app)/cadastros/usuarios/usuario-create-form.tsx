@@ -60,6 +60,7 @@ export function UsuarioCreateForm({
             id="nome"
             name="nome"
             required
+            autoComplete="off"
             onChange={(e) => {
               if (!usuarioEditadoManualmente.current && usuarioInputRef.current) {
                 usuarioInputRef.current.value = sugerirUsuario(e.target.value);
@@ -76,7 +77,14 @@ export function UsuarioCreateForm({
             type="text"
             placeholder="Nome, número ou e-mail"
             required
-            onChange={() => {
+            autoComplete="off"
+            // Só conta como edição manual quando é o próprio usuário digitando ou
+            // colando — o autofill do navegador dispara "onChange" mas não essas
+            // duas, então não trava a sugestão antes de o admin realmente mexer.
+            onKeyDown={() => {
+              usuarioEditadoManualmente.current = true;
+            }}
+            onPaste={() => {
               usuarioEditadoManualmente.current = true;
             }}
           />
