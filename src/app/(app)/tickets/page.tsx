@@ -12,7 +12,7 @@ import {
 } from "@/lib/tickets";
 import type { PdvCalendar } from "@/lib/business-calendar";
 import { formatarDataHora } from "@/lib/datas";
-import { canOpenTicket, canChangeStatus } from "@/lib/permissions";
+import { canOpenTicket, canChangeStatus, getVisiblePdvIds } from "@/lib/permissions";
 import { AssumirIconButton } from "./assumir-icon-button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card, CardContent } from "@/components/ui/card";
@@ -157,6 +157,9 @@ export default async function TicketsPage({
       prisma.configGeral.upsert({ where: { id: "geral" }, update: {}, create: { id: "geral" } }),
     ]);
 
+  const visiblePdvIds = getVisiblePdvIds(user);
+  const pdvsNoEscopo = pdvs.filter((p) => visiblePdvIds.includes(p.id));
+
   const contagemPorStatus = new Map(statusCounts.map((s) => [s.status, s._count._all]));
   const statusMap = new Map(statuses.map((s) => [s.id, s]));
   const statusInfo = (chave: string) => statusMap.get(chave) ?? { nome: chave, cor: "slate" };
@@ -274,7 +277,7 @@ export default async function TicketsPage({
                   <MultiSelectFilter
                     paramName="pdvId"
                     label="PDV"
-                    options={pdvs.map((p) => ({ value: p.id, label: `${p.codigo} — ${p.nome}` }))}
+                    options={pdvsNoEscopo.map((p) => ({ value: p.id, label: `${p.codigo} — ${p.nome}` }))}
                   />
                 </TableHead>
                 <TableHead className="text-center">

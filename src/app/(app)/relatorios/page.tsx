@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/session";
-import { canViewReports } from "@/lib/permissions";
+import { canViewReports, getVisiblePdvIds } from "@/lib/permissions";
 import { buildChamadoWhere } from "@/lib/tickets";
 import { redirect } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -99,6 +99,9 @@ export default async function RelatoriosPage({
 
   const rows = chamados as unknown as ChamadoReportRow[];
 
+  const visiblePdvIds = getVisiblePdvIds(user);
+  const pdvsNoEscopo = todosPdvs.filter((p) => visiblePdvIds.includes(p.id));
+
   const perfilMap = new Map(perfis.map((p) => [p.id, p]));
   const solicitantesFiltro = usuarios.filter((u) => perfilMap.get(u.perfil)?.podeAbrirChamado);
   const operadoresFiltro = usuarios.filter((u) => perfilMap.get(u.perfil)?.podeAlterarStatus);
@@ -179,7 +182,7 @@ export default async function RelatoriosPage({
       </div>
 
       <ReportFilters
-        pdvs={todosPdvs}
+        pdvs={pdvsNoEscopo}
         servicos={servicos}
         solicitantes={solicitantesFiltro}
         operadores={operadoresFiltro}
