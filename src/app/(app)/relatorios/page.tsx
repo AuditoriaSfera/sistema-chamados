@@ -11,6 +11,7 @@ import { MultiSelectFilter } from "@/components/multi-select-filter";
 import { cn } from "@/lib/utils";
 import { corBorderClasses, type ColorKey } from "@/lib/color-palette";
 import { ColorIcon } from "@/components/color-icon";
+import { ExportableSummaryCard } from "@/components/exportable-summary-card";
 import { SummaryCard } from "@/components/summary-card";
 import Link from "next/link";
 import {
@@ -35,6 +36,7 @@ import {
 import {
   type CalendarioPorPdv,
   type ChamadoReportRow,
+  classificarCumprimentoSla,
   pdvsComMaisChamados,
   porPdv,
   produtividadePorOperador,
@@ -47,10 +49,13 @@ import {
   taxaReaberturaGeral,
   taxaReaberturaPorPdv,
   tempoMedioResolucaoGeral,
+  tempoResolucao,
   volumePorDiaSemana,
 } from "@/lib/reports";
 import type { PdvCalendar } from "@/lib/business-calendar";
 import { fmtHoras } from "@/lib/sla-format";
+import { formatarDataHora } from "@/lib/datas";
+import { formatarNumeroChamado } from "@/lib/tickets";
 
 export default async function RelatoriosPage({
   searchParams,
@@ -63,7 +68,7 @@ export default async function RelatoriosPage({
 
   const where = buildChamadoWhere(user, sp);
 
-  const [chamados, todosPdvs, servicos, usuarios, perfis] = await Promise.all([
+  const [chamados, todosPdvs, servicos, usuarios, perfis, statuses] = await Promise.all([
     prisma.chamado.findMany({
       where,
       orderBy: { createdAt: "desc" },
@@ -89,6 +94,7 @@ export default async function RelatoriosPage({
     prisma.servico.findMany({ orderBy: { nome: "asc" } }),
     prisma.usuario.findMany({ orderBy: { nome: "asc" } }),
     prisma.perfilAcesso.findMany(),
+    prisma.status.findMany(),
   ]);
 
   const rows = chamados as unknown as ChamadoReportRow[];
@@ -96,6 +102,9 @@ export default async function RelatoriosPage({
   const perfilMap = new Map(perfis.map((p) => [p.id, p]));
   const solicitantesFiltro = usuarios.filter((u) => perfilMap.get(u.perfil)?.podeAbrirChamado);
   const operadoresFiltro = usuarios.filter((u) => perfilMap.get(u.perfil)?.podeAlterarStatus);
+
+  const statusMap = new Map(statuses.map((s) => [s.id, s.nome]));
+  const statusLabel = (status: string) => statusMap.get(status) ?? status;
 
   const pdvIdsComChamado = [...new Set(rows.map((c) => c.pdv.id))];
   const [horariosPorPdv, feriadosPorPdv] = pdvIdsComChamado.length
@@ -128,6 +137,38 @@ export default async function RelatoriosPage({
   const reaberturaPorPdv = taxaReaberturaPorPdv(rows);
   const diaSemana = volumePorDiaSemana(rows);
 
+  const CHAMADO_HEADERS = [
+    "Chamado",
+    "PDV",
+    "Serviço",
+    "Revendedor",
+    "Solicitante",
+    "Responsável",
+    "Status",
+    "SLA",
+    "Aberto em",
+    "Finalizado em",
+  ];
+  const chamadoRow = (c: ChamadoReportRow) => [
+    formatarNumeroChamado(c.numero),
+    c.pdv.codigo,
+    c.servico.nome,
+    c.pedido.nomeCliente,
+    c.abertoPor.nome,
+    c.responsavel?.nome ?? "Sem responsável",
+    statusLabel(c.status),
+    c.slaPreset.nome,
+    formatarDataHora(c.createdAt),
+    c.finalizadoEm ? formatarDataHora(c.finalizadoEm) : "",
+  ];
+
+  const chamadosCumpridoSla = rows.filter((c) => classificarCumprimentoSla(c) === "cumprido");
+  const chamadosVencidoSla = rows.filter((c) => classificarCumprimentoSla(c) === "vencido");
+  const chamadosComTempoResolucao = rows
+    .map((c) => ({ c, duracao: tempoResolucao(c, calendarioPorPdv) }))
+    .filter((v): v is { c: ChamadoReportRow; duracao: NonNullable<typeof v.duracao> } => v.duracao !== null);
+  const chamadosReabertos = rows.filter((c) => c.motivoReabertura);
+
   return (
     <div className="space-y-6">
       <div>
@@ -146,36 +187,79 @@ export default async function RelatoriosPage({
       />
 
       <div className="grid grid-cols-5 gap-4">
-        <SummaryCard label="Total de chamados" icon={Inbox} color="blue">
-          <p className="text-2xl font-semibold">{sla.total}</p>
-        </SummaryCard>
-        <SummaryCard label="SLA cumprido" icon={CheckCircle2} color="emerald">
-          <p className="text-2xl font-semibold text-emerald-600">{sla.cumpridoPct}%</p>
-        </SummaryCard>
-        <SummaryCard label="SLA vencido" icon={AlertTriangle} color="red">
-          <p className="text-2xl font-semibold text-destructive">{sla.vencidoPct}%</p>
-        </SummaryCard>
-        <SummaryCard label="Tempo médio de resolução" icon={Clock} color="cyan">
-          <div className="flex items-end gap-4">
-            <div>
-              <p className="text-2xl font-semibold">{fmtHoras(tempoMedio?.totalHoras ?? null)}</p>
-              <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-                Corrido
-              </p>
+        <ExportableSummaryCard
+          csvFilename="chamados-detalhe"
+          csvHeaders={CHAMADO_HEADERS}
+          csvRows={rows.map(chamadoRow)}
+        >
+          <SummaryCard label="Total de chamados" icon={Inbox} color="blue">
+            <p className="text-2xl font-semibold">{sla.total}</p>
+          </SummaryCard>
+        </ExportableSummaryCard>
+        <ExportableSummaryCard
+          csvFilename="sla-cumprido-detalhe"
+          csvHeaders={CHAMADO_HEADERS}
+          csvRows={chamadosCumpridoSla.map(chamadoRow)}
+        >
+          <SummaryCard label="SLA cumprido" icon={CheckCircle2} color="emerald">
+            <p className="text-2xl font-semibold text-emerald-600">{sla.cumpridoPct}%</p>
+          </SummaryCard>
+        </ExportableSummaryCard>
+        <ExportableSummaryCard
+          csvFilename="sla-vencido-detalhe"
+          csvHeaders={CHAMADO_HEADERS}
+          csvRows={chamadosVencidoSla.map(chamadoRow)}
+        >
+          <SummaryCard label="SLA vencido" icon={AlertTriangle} color="red">
+            <p className="text-2xl font-semibold text-destructive">{sla.vencidoPct}%</p>
+          </SummaryCard>
+        </ExportableSummaryCard>
+        <ExportableSummaryCard
+          csvFilename="tempo-medio-resolucao-detalhe"
+          csvHeaders={["Chamado", "PDV", "Aberto em", "Finalizado em", "Tempo (corrido)", "Tempo (útil)"]}
+          csvRows={chamadosComTempoResolucao.map(({ c, duracao }) => [
+            formatarNumeroChamado(c.numero),
+            c.pdv.codigo,
+            formatarDataHora(c.createdAt),
+            c.finalizadoEm ? formatarDataHora(c.finalizadoEm) : "",
+            fmtHoras(duracao.totalHoras),
+            fmtHoras(duracao.utilHoras),
+          ])}
+        >
+          <SummaryCard label="Tempo médio de resolução" icon={Clock} color="cyan">
+            <div className="flex items-end gap-4">
+              <div>
+                <p className="text-2xl font-semibold">{fmtHoras(tempoMedio?.totalHoras ?? null)}</p>
+                <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                  Corrido
+                </p>
+              </div>
+              <div>
+                <p className="text-2xl font-semibold text-cyan-600 dark:text-cyan-400">
+                  {fmtHoras(tempoMedio?.utilHoras ?? null)}
+                </p>
+                <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                  Útil
+                </p>
+              </div>
             </div>
-            <div>
-              <p className="text-2xl font-semibold text-cyan-600 dark:text-cyan-400">
-                {fmtHoras(tempoMedio?.utilHoras ?? null)}
-              </p>
-              <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-                Útil
-              </p>
-            </div>
-          </div>
-        </SummaryCard>
-        <SummaryCard label="Taxa de reabertura" icon={RotateCcw} color="amber">
-          <p className="text-2xl font-semibold">{taxaReabertura}%</p>
-        </SummaryCard>
+          </SummaryCard>
+        </ExportableSummaryCard>
+        <ExportableSummaryCard
+          csvFilename="taxa-reabertura-detalhe"
+          csvHeaders={["Chamado", "PDV", "Solicitante", "Motivo da reabertura", "Status atual"]}
+          csvRows={chamadosReabertos.map((c) => [
+            formatarNumeroChamado(c.numero),
+            c.pdv.codigo,
+            c.abertoPor.nome,
+            c.motivoReabertura ?? "",
+            statusLabel(c.status),
+          ])}
+        >
+          <SummaryCard label="Taxa de reabertura" icon={RotateCcw} color="amber">
+            <p className="text-2xl font-semibold">{taxaReabertura}%</p>
+          </SummaryCard>
+        </ExportableSummaryCard>
       </div>
 
       <ReportCard

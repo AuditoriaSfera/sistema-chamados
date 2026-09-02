@@ -15,6 +15,7 @@ import {
 } from "@/lib/reports";
 import { STATUS_FINAIS } from "@/lib/constants";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { buttonVariants } from "@/components/ui/button";
 import { AutoRefresh } from "@/components/auto-refresh";
 import { SummaryCard } from "@/components/summary-card";
 import { HorizontalBar } from "@/components/horizontal-bar";
@@ -57,6 +58,17 @@ function SlaDot({ cor }: { cor: "verde" | "amarelo" | "vermelho" }) {
 function parseMulti(valor: string | undefined): string[] | undefined {
   const valores = valor?.split(",").filter(Boolean);
   return valores && valores.length > 0 ? valores : undefined;
+}
+
+const CAMPOS_FILTRO = ["pdvId", "solicitanteId", "operadorId", "de", "ate", "periodo"];
+
+function hrefLimparFiltros(sp: Record<string, string | undefined>) {
+  const params = new URLSearchParams();
+  for (const [k, v] of Object.entries(sp)) {
+    if (v && !CAMPOS_FILTRO.includes(k)) params.set(k, v);
+  }
+  const query = params.toString();
+  return query ? `/monitoramento?${query}` : "/monitoramento";
 }
 
 export default async function MonitoramentoPage({
@@ -344,6 +356,9 @@ export default async function MonitoramentoPage({
                 />
               </div>
             </div>
+            <Link href={hrefLimparFiltros(sp)} className={buttonVariants({ variant: "ghost", size: "sm" })}>
+              Limpar filtros
+            </Link>
           </div>
           <DateRangeFilter basePath="/monitoramento" sp={sp} />
         </CardContent>

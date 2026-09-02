@@ -54,7 +54,7 @@ function averageDuracao(valores: Duracao[]): Duracao | null {
   };
 }
 
-function tempoResolucao(c: ChamadoReportRow, calendarios: CalendarioPorPdv): Duracao | null {
+export function tempoResolucao(c: ChamadoReportRow, calendarios: CalendarioPorPdv): Duracao | null {
   // Reabertura não limpa finalizadoEm (histórico), então só conta como resolvido
   // o chamado que está FINALIZADO agora — senão um reaberto contaria como resolvido.
   if (!c.finalizadoEm || c.status !== "FINALIZADO") return null;
@@ -346,6 +346,22 @@ export function classificarSla(
   const restanteMs = c.slaVencimentoEm.getTime() - now.getTime();
   if (prazoTotalMs > 0 && restanteMs <= prazoTotalMs * 0.2) return "risco";
   return "ok";
+}
+
+export type SlaCumprimento = "cumprido" | "vencido" | "em_andamento" | "sem_sla";
+
+/** Classificação de cumprimento de SLA por chamado, no mesmo critério usado em slaStats. */
+export function classificarCumprimentoSla(
+  c: Pick<ChamadoReportRow, "status" | "finalizadoEm" | "slaVencimentoEm">,
+  now: Date = new Date()
+): SlaCumprimento {
+  if (!c.slaVencimentoEm) return "sem_sla";
+  if (STATUS_FINAIS.includes(c.status)) {
+    if (c.status === "CANCELADO") return "sem_sla";
+    if (c.finalizadoEm && c.finalizadoEm <= c.slaVencimentoEm) return "cumprido";
+    return "vencido";
+  }
+  return now > c.slaVencimentoEm ? "vencido" : "em_andamento";
 }
 
 /** Carga de trabalho atual (chamados ainda não finalizados/cancelados) por operador. */

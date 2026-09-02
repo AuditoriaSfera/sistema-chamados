@@ -1,7 +1,20 @@
+import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
+import { buttonVariants } from "@/components/ui/button";
 import { MultiSelectFilter } from "@/components/multi-select-filter";
 import { DateRangeFilter } from "@/components/date-range-filter";
 import { SEM_RESPONSAVEL_VALUE } from "@/lib/tickets";
+
+const CAMPOS_FILTRO = ["pdvId", "servicoId", "solicitanteId", "operadorId", "de", "ate", "periodo"];
+
+function hrefLimparFiltros(sp: Record<string, string | undefined>) {
+  const params = new URLSearchParams();
+  for (const [k, v] of Object.entries(sp)) {
+    if (v && !CAMPOS_FILTRO.includes(k)) params.set(k, v);
+  }
+  const query = params.toString();
+  return query ? `/relatorios?${query}` : "/relatorios";
+}
 
 export function ReportFilters({
   pdvs,
@@ -63,6 +76,9 @@ export function ReportFilters({
               />
             </div>
           </div>
+          <Link href={hrefLimparFiltros(searchParams)} className={buttonVariants({ variant: "ghost", size: "sm" })}>
+            Limpar filtros
+          </Link>
         </div>
         <DateRangeFilter basePath="/relatorios" sp={searchParams} />
       </CardContent>
