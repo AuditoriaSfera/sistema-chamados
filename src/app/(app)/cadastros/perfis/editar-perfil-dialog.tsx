@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
+import { ESCOPOS_CHAMADOS, ESCOPO_CHAMADOS_LABELS, derivarEscopoChamados } from "@/lib/constants";
 import {
   Dialog,
   DialogContent,
@@ -16,11 +17,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-
-const VISIBILIDADE = [
-  { name: "veTodosChamados", label: "Ver todos os chamados" },
-  { name: "veChamadosPdvsVinculados", label: "Ver chamados dos PDVs vinculados ao usuário" },
-] as const;
 
 const PERMISSOES = [
   { name: "podeAbrirChamado", label: "Abrir chamado" },
@@ -70,6 +66,7 @@ export function EditarPerfilDialog({
   const [open, setOpen] = useState(false);
   const [state, formAction, pending] = useActionState(updatePerfil, undefined);
   const [processedState, setProcessedState] = useState(state);
+  const escopoAtual = derivarEscopoChamados(perfil);
 
   if (state !== processedState) {
     setProcessedState(state);
@@ -93,15 +90,18 @@ export function EditarPerfilDialog({
           </div>
           <div className="space-y-2">
             <Label>Visibilidade de chamados</Label>
-            {VISIBILIDADE.map((p) => (
-              <label key={p.name} className="flex items-center gap-2 text-sm">
-                <Checkbox name={p.name} defaultChecked={perfil[p.name]} />
-                {p.label}
+            {ESCOPOS_CHAMADOS.map((valor) => (
+              <label key={valor} className="flex items-center gap-2 text-sm">
+                <input
+                  type="radio"
+                  name="escopoChamados"
+                  value={valor}
+                  defaultChecked={escopoAtual === valor}
+                  className="size-4 accent-primary"
+                />
+                {ESCOPO_CHAMADOS_LABELS[valor]}
               </label>
             ))}
-            <p className="text-xs text-muted-foreground">
-              Se nenhuma marcada, o perfil só vê os chamados que o próprio usuário abriu.
-            </p>
           </div>
           <div className="space-y-2">
             <Label>Permissões</Label>
