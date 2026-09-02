@@ -29,7 +29,9 @@ export default async function UsuarioDetailPage({
   // Conta administrativa: só administrador pleno mexe. As actions recusam de
   // qualquer forma — aqui é para não oferecer um controle que vai dar erro.
   const podeMexer = podeGerenciarAlvo(user, perfil);
-  const usaVinculoPdv = escopo === "PDVS_VINCULADOS" && podeMexer;
+  // O vínculo por PDV sempre se aplica, em qualquer perfil — não é mais uma
+  // opção exclusiva de um escopo específico (ver getVisiblePdvIds).
+  const usaVinculoPdv = podeMexer;
   const usaVePedidosEquipe = escopo === "PROPRIOS" && podeMexer;
 
   return (
@@ -76,12 +78,6 @@ export default async function UsuarioDetailPage({
       {!podeMexer && (
         <p className="text-sm text-muted-foreground">
           Este é um cadastro administrativo — só um administrador pleno pode alterá-lo.
-        </p>
-      )}
-
-      {podeMexer && !usaVinculoPdv && !usaVePedidosEquipe && (
-        <p className="text-sm text-muted-foreground">
-          Este perfil enxerga todos os chamados, sem restrição por PDV.
         </p>
       )}
     </div>

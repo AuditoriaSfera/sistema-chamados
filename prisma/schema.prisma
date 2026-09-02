@@ -59,10 +59,14 @@ model TokenSenha {
 // Perfil de acesso — cadastro dinâmico e totalmente customizável pelo admin.
 // Cada perfil marca quais permissões tem. Há dois níveis de administração:
 // podeGerenciarCadastros abre os cadastros, e podeGerenciarAdministradores
-// diz quem pode mexer nas contas que têm o primeiro. A visibilidade de chamados (antigo
-// campo único "escopoChamados") agora é derivada de veTodosChamados e
-// veChamadosPdvsVinculados — ver src/lib/constants.ts#derivarEscopoChamados.
-// Nenhuma das duas marcada cai no padrão: só os chamados que o usuário abriu.
+// diz quem pode mexer nas contas que têm o primeiro.
+//
+// Visibilidade de chamados: o vínculo com PDV (UsuarioPdv) SEMPRE restringe —
+// nenhum perfil enxerga chamado de PDV a que o usuário não está vinculado,
+// sem exceção (nem Administrador; visão ampla se consegue vinculando a todos
+// os PDVs, não por um perfil "vê tudo"). A única escolha que resta ao perfil é
+// veSomenteProprios: dentro desse recorte por PDV, o usuário vê só os
+// chamados que ele mesmo abriu, ou os de todo mundo do(s) PDV(s) dele.
 model PerfilAcesso {
   id                       String   @id @default(cuid())
   nome                     String   @unique
@@ -83,8 +87,7 @@ model PerfilAcesso {
   // proprio perfil pra se dar permissoes novas. Tambem porteira das telas de
   // Configuracoes e Auditoria. Ver src/lib/permissions.ts#podeGerenciarAlvo.
   podeGerenciarAdministradores Boolean @default(false)
-  veTodosChamados          Boolean  @default(false)
-  veChamadosPdvsVinculados Boolean  @default(false)
+  veSomenteProprios        Boolean  @default(false)
   createdAt                DateTime @default(now())
 }
 

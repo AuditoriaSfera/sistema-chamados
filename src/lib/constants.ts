@@ -1,28 +1,19 @@
 // Perfil de acesso agora é um cadastro dinâmico (model PerfilAcesso, ver
 // src/app/(app)/cadastros/perfis) — o admin cria/edita perfis e marca quais
-// permissões cada um tem. O que resta fixo é o "escopo de chamados": as 3
-// formas possíveis de visibilidade que o código sabe calcular.
-export const ESCOPOS_CHAMADOS = ["PROPRIOS", "PDVS_VINCULADOS", "TODOS"] as const;
+// permissões cada um tem. Visibilidade de chamados: o vínculo com PDV sempre
+// restringe (ver src/lib/permissions.ts#getVisiblePdvIds) — a única escolha
+// que resta é "só os próprios" vs. "todo mundo do(s) PDV(s) vinculado(s)".
+export const ESCOPOS_CHAMADOS = ["PROPRIOS", "TODOS"] as const;
 export type EscopoChamados = (typeof ESCOPOS_CHAMADOS)[number];
 
 export const ESCOPO_CHAMADOS_LABELS: Record<EscopoChamados, string> = {
   PROPRIOS: "Só os chamados que o usuário abriu",
-  PDVS_VINCULADOS: "Chamados dos PDVs vinculados ao usuário",
-  TODOS: "Todos os chamados",
+  TODOS: "Todos os chamados dos PDVs vinculados ao usuário",
 };
 
-/**
- * O escopo não é mais escolhido diretamente — é derivado de duas permissões
- * do perfil (veTodosChamados / veChamadosPdvsVinculados). Nenhuma marcada
- * cai no padrão PROPRIOS (só os chamados que o usuário abriu).
- */
-export function derivarEscopoChamados(perfil: {
-  veTodosChamados: boolean;
-  veChamadosPdvsVinculados: boolean;
-}): EscopoChamados {
-  if (perfil.veTodosChamados) return "TODOS";
-  if (perfil.veChamadosPdvsVinculados) return "PDVS_VINCULADOS";
-  return "PROPRIOS";
+/** O escopo não é mais escolhido diretamente — é derivado de veSomenteProprios. */
+export function derivarEscopoChamados(perfil: { veSomenteProprios: boolean }): EscopoChamados {
+  return perfil.veSomenteProprios ? "PROPRIOS" : "TODOS";
 }
 
 export const CATEGORIAS_SERVICO = [

@@ -7,7 +7,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
-import { ESCOPOS_CHAMADOS, ESCOPO_CHAMADOS_LABELS } from "@/lib/constants";
 import {
   Dialog,
   DialogContent,
@@ -67,18 +66,14 @@ export function NovoPerfilDialog({
           </div>
           <div className="space-y-2">
             <Label>Visibilidade de chamados</Label>
-            {ESCOPOS_CHAMADOS.map((valor) => (
-              <label key={valor} className="flex items-center gap-2 text-sm">
-                <input
-                  type="radio"
-                  name="escopoChamados"
-                  value={valor}
-                  defaultChecked={valor === "PROPRIOS"}
-                  className="size-4 accent-primary"
-                />
-                {ESCOPO_CHAMADOS_LABELS[valor]}
-              </label>
-            ))}
+            <label className="flex items-center gap-2 text-sm">
+              <Checkbox name="veSomenteProprios" />
+              Só os chamados que o usuário abriu
+            </label>
+            <p className="text-xs text-muted-foreground">
+              Desmarcado, o usuário vê os chamados de todo mundo do(s) PDV(s) vinculados a ele.
+              O vínculo por PDV sempre se aplica, em qualquer um dos dois casos.
+            </p>
           </div>
           <div className="space-y-2">
             <Label>Permissões</Label>

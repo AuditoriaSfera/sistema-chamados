@@ -7,7 +7,6 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { logAudit } from "@/lib/audit";
 import { proximaCor } from "@/lib/color-palette";
-import { ESCOPOS_CHAMADOS } from "@/lib/constants";
 
 const perfilSchema = z.object({
   nome: z.string().min(1),
@@ -19,15 +18,11 @@ const perfilSchema = z.object({
   podeVerRelatorios: z.boolean(),
   podeGerenciarCadastros: z.boolean(),
   podeGerenciarAdministradores: z.boolean(),
-  // Visibilidade de chamados é uma escolha única (não duas caixas
-  // independentes) — senão dá pra marcar "todos" e "PDVs vinculados" ao
-  // mesmo tempo, e "todos" sempre vence em silêncio (ver
-  // derivarEscopoChamados), fazendo o filtro de PDV parecer quebrado.
-  escopoChamados: z.enum(ESCOPOS_CHAMADOS),
+  veSomenteProprios: z.boolean(),
 });
 
 function parsePermissoes(formData: FormData) {
-  const parsed = perfilSchema.safeParse({
+  return perfilSchema.safeParse({
     nome: formData.get("nome"),
     podeAbrirChamado: formData.get("podeAbrirChamado") === "on",
     podeAlterarStatus: formData.get("podeAlterarStatus") === "on",
@@ -37,18 +32,8 @@ function parsePermissoes(formData: FormData) {
     podeVerRelatorios: formData.get("podeVerRelatorios") === "on",
     podeGerenciarCadastros: formData.get("podeGerenciarCadastros") === "on",
     podeGerenciarAdministradores: formData.get("podeGerenciarAdministradores") === "on",
-    escopoChamados: formData.get("escopoChamados"),
+    veSomenteProprios: formData.get("veSomenteProprios") === "on",
   });
-  if (!parsed.success) return parsed;
-  const { escopoChamados, ...resto } = parsed.data;
-  return {
-    success: true as const,
-    data: {
-      ...resto,
-      veTodosChamados: escopoChamados === "TODOS",
-      veChamadosPdvsVinculados: escopoChamados === "PDVS_VINCULADOS",
-    },
-  };
 }
 
 const ERRO_CONCEDER_ADMIN =

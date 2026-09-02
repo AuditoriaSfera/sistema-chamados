@@ -32,14 +32,18 @@ function user(overrides: Partial<SessionUser>): SessionUser {
 }
 
 describe("getVisiblePdvIds", () => {
-  it("Administrador e Gestor com escopo TODOS têm visão ampla (null)", () => {
-    expect(getVisiblePdvIds(user({ escopoChamados: "TODOS" }))).toBeNull();
-    expect(getVisiblePdvIds(user({ escopoChamados: "PROPRIOS" }))).toBeNull();
+  it("sempre devolve os PDVs vinculados, em qualquer escopo — inclusive TODOS", () => {
+    expect(getVisiblePdvIds(user({ escopoChamados: "TODOS", pdvIds: ["pdv1", "pdv2"] }))).toEqual([
+      "pdv1",
+      "pdv2",
+    ]);
+    expect(getVisiblePdvIds(user({ escopoChamados: "PROPRIOS", pdvIds: ["pdv1"] }))).toEqual([
+      "pdv1",
+    ]);
   });
 
-  it("Perfil com escopo PDVS_VINCULADOS só vê os PDVs vinculados", () => {
-    const u = user({ escopoChamados: "PDVS_VINCULADOS", pdvIds: ["pdv1", "pdv2"] });
-    expect(getVisiblePdvIds(u)).toEqual(["pdv1", "pdv2"]);
+  it("sem nenhum vínculo, não enxerga PDV nenhum — mesmo em escopo TODOS", () => {
+    expect(getVisiblePdvIds(user({ escopoChamados: "TODOS", pdvIds: [] }))).toEqual([]);
   });
 });
 
@@ -59,21 +63,21 @@ describe("ticketScopeFilterForRequester", () => {
   });
 });
 
-describe("canAccessChamado — escopo por PDV", () => {
-  it("Escopo PDVS_VINCULADOS não acessa chamado de PDV fora do vínculo", () => {
-    const u = user({ escopoChamados: "PDVS_VINCULADOS", pdvIds: ["pdv1"] });
+describe("canAccessChamado — PDV sempre restringe, mesmo em escopo TODOS", () => {
+  it("não acessa chamado de PDV fora do vínculo", () => {
+    const u = user({ escopoChamados: "TODOS", pdvIds: ["pdv1"] });
     const chamado = { pdvId: "pdv2", abertoPorId: "outro" };
     expect(canAccessChamado(u, chamado)).toBe(false);
   });
 
-  it("Escopo PDVS_VINCULADOS acessa chamado do próprio PDV", () => {
-    const u = user({ escopoChamados: "PDVS_VINCULADOS", pdvIds: ["pdv1"] });
+  it("acessa chamado do próprio PDV", () => {
+    const u = user({ escopoChamados: "TODOS", pdvIds: ["pdv1"] });
     const chamado = { pdvId: "pdv1", abertoPorId: "outro" };
     expect(canAccessChamado(u, chamado)).toBe(true);
   });
 
-  it("Escopo PROPRIOS sem vePedidosDaEquipe não acessa chamado aberto por outro usuário", () => {
-    const u = user({ escopoChamados: "PROPRIOS", id: "u42", vePedidosDaEquipe: false });
+  it("Escopo PROPRIOS sem vePedidosDaEquipe não acessa chamado aberto por outro usuário, mesmo do próprio PDV", () => {
+    const u = user({ escopoChamados: "PROPRIOS", id: "u42", vePedidosDaEquipe: false, pdvIds: ["pdv1"] });
     const chamado = { pdvId: "pdv1", abertoPorId: "outro" };
     expect(canAccessChamado(u, chamado)).toBe(false);
   });
@@ -107,22 +111,22 @@ describe("escopo PROPRIOS combinado com vePedidosDaEquipe", () => {
     expect(canAccessChamado(semPdv, doPdvDele)).toBe(false);
   });
 
-  it("continua vendo os próprios chamados, em qualquer PDV", () => {
+  it("continua vendo os próprios chamados, dentro do PDV vinculado", () => {
     const u = equipe();
     expect(canAccessChamado(u, { pdvId: "pdv1", abertoPorId: u.id })).toBe(true);
   });
 
-  it("sem o flag, o filtro de dono segue valendo e o de PDV continua aberto", () => {
-    const u = user({ escopoChamados: "PROPRIOS", vePedidosDaEquipe: false, pdvIds: ["pdv1"] });
-    expect(getVisiblePdvIds(u)).toBeNull();
+  it("sem o flag, o filtro de dono segue valendo dentro do próprio PDV", () => {
+    const u = user({ escopoChamados: "PROPRIOS", vePedidosDaEquipe: false, pdvIds: ["pdv1", "pdv9"] });
+    expect(getVisiblePdvIds(u)).toEqual(["pdv1", "pdv9"]);
     expect(canAccessChamado(u, { pdvId: "pdv9", abertoPorId: u.id })).toBe(true);
     expect(canAccessChamado(u, doPdvDele)).toBe(false);
   });
 
-  it("escopo TODOS não é afetado pelo flag", () => {
+  it("escopo TODOS não é afetado pelo flag, mas continua restrito por PDV", () => {
     const u = user({ escopoChamados: "TODOS", vePedidosDaEquipe: true, pdvIds: [] });
-    expect(getVisiblePdvIds(u)).toBeNull();
-    expect(canAccessChamado(u, deOutroPdv)).toBe(true);
+    expect(getVisiblePdvIds(u)).toEqual([]);
+    expect(canAccessChamado(u, deOutroPdv)).toBe(false);
   });
 });
 

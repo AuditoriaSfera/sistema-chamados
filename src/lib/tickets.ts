@@ -32,7 +32,7 @@ export function buildChamadoWhere(
   const where: Prisma.ChamadoWhereInput = {};
 
   const visiblePdvIds = getVisiblePdvIds(user);
-  if (visiblePdvIds !== null) where.pdvId = { in: visiblePdvIds };
+  where.pdvId = { in: visiblePdvIds };
 
   const requesterScope = ticketScopeFilterForRequester(user);
   if (requesterScope) where.abertoPorId = requesterScope;
@@ -45,9 +45,7 @@ export function buildChamadoWhere(
 
   const pdvValues = parseMulti(sp.pdvId);
   if (pdvValues?.length) {
-    where.pdvId = {
-      in: visiblePdvIds !== null ? pdvValues.filter((id) => visiblePdvIds.includes(id)) : pdvValues,
-    };
+    where.pdvId = { in: pdvValues.filter((id) => visiblePdvIds.includes(id)) };
   }
 
   const servicoValues = parseMulti(sp.servicoId);

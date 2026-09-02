@@ -112,8 +112,7 @@ export default async function MonitoramentoPage({
   const rows = chamados as unknown as ChamadoReportRow[];
 
   const visiblePdvIds = getVisiblePdvIds(user);
-  const pdvsNoEscopo =
-    visiblePdvIds === null ? todosPdvs : todosPdvs.filter((pdv) => visiblePdvIds.includes(pdv.id));
+  const pdvsNoEscopo = todosPdvs.filter((pdv) => visiblePdvIds.includes(pdv.id));
 
   const perfilMap = new Map(perfis.map((p) => [p.id, p]));
   const solicitantes = usuarios.filter((u) => perfilMap.get(u.perfil)?.podeAbrirChamado);
