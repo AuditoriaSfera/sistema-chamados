@@ -137,6 +137,26 @@ describe("slaStats", () => {
     expect(stats.vencidos).toBe(1);
     expect(stats.cumpridoPct).toBe(50);
   });
+
+  it("cumpridoPct e vencidoPct sempre somam 100 (mesmo denominador de decididos)", () => {
+    const finalizadoNoPrazo = chamado({
+      status: "FINALIZADO",
+      finalizadoEm: new Date("2026-08-11T10:00:00"),
+      slaVencimentoEm: new Date("2026-08-11T12:00:00"),
+    });
+    const finalizadoAtrasado1 = chamado({
+      status: "FINALIZADO",
+      finalizadoEm: new Date("2026-08-11T20:00:00"),
+      slaVencimentoEm: new Date("2026-08-11T12:00:00"),
+    });
+    const finalizadoAtrasado2 = chamado({
+      status: "FINALIZADO",
+      finalizadoEm: new Date("2026-08-11T20:00:00"),
+      slaVencimentoEm: new Date("2026-08-11T12:00:00"),
+    });
+    const stats = slaStats([finalizadoNoPrazo, finalizadoAtrasado1, finalizadoAtrasado2], now);
+    expect(stats.cumpridoPct + stats.vencidoPct).toBe(100);
+  });
 });
 
 describe("tempoMedioResolucaoGeral", () => {

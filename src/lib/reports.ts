@@ -106,12 +106,14 @@ export function slaStats(chamados: ChamadoReportRow[], now: Date = new Date()) {
   const consideraveis = chamados.length - semSla;
   const pct = (n: number) => (consideraveis > 0 ? Math.round((n / consideraveis) * 100) : 0);
 
-  // cumpridoPct só considera quem já teve o resultado decidido (cumpridos +
-  // vencidos) — chamado ainda dentro do prazo não entra, porque ainda pode
-  // virar cumprido. Sem isso, a fila de chamados em aberto dilui o número
-  // pra baixo mesmo sem nada ter vencido de fato.
+  // cumpridoPct e vencidoPct só consideram quem já teve o resultado decidido
+  // (cumpridos + vencidos) — chamado ainda dentro do prazo não entra em
+  // nenhum dos dois, porque ainda pode virar cumprido. Os dois usam a mesma
+  // base de propósito: assim sempre somam 100% entre si (emRiscoPct é a
+  // exceção — mede quem ainda está em andamento, um recorte à parte).
   const decididos = cumpridos + vencidos;
   const cumpridoPct = decididos > 0 ? Math.round((cumpridos / decididos) * 100) : 0;
+  const vencidoPct = decididos > 0 ? 100 - cumpridoPct : 0;
 
   return {
     total: chamados.length,
@@ -119,7 +121,7 @@ export function slaStats(chamados: ChamadoReportRow[], now: Date = new Date()) {
     vencidos,
     emRisco,
     cumpridoPct,
-    vencidoPct: pct(vencidos),
+    vencidoPct,
     emRiscoPct: pct(emRisco),
   };
 }
