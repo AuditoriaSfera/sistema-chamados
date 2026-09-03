@@ -24,8 +24,19 @@ export function fmtHoras(h: number | null): string {
   return `${(h / 24).toFixed(1)}d`;
 }
 
-/** "vence em 3.2h" quando o prazo ainda não passou, "vencido há 2.1h" quando já passou. */
+/** Formata uma duração em horas decimais, usando minutos quando for menos de 1h (mais legível que "0.3h"). */
+function fmtHorasOuMinutos(h: number): string {
+  if (h < 1) {
+    const minutos = Math.round(h * 60);
+    if (minutos < 60) return `${minutos}min`;
+  }
+  return fmtHoras(h);
+}
+
+/** "vence em 3.2h" quando o prazo ainda não passou, "vencido há 18min" quando já passou. */
 export function formatarPrazoRelativo(alvo: Date, agora: Date = new Date()): string {
   const diffHoras = (alvo.getTime() - agora.getTime()) / (1000 * 60 * 60);
-  return diffHoras >= 0 ? `vence em ${fmtHoras(diffHoras)}` : `vencido há ${fmtHoras(-diffHoras)}`;
+  return diffHoras >= 0
+    ? `vence em ${fmtHorasOuMinutos(diffHoras)}`
+    : `vencido há ${fmtHorasOuMinutos(-diffHoras)}`;
 }
