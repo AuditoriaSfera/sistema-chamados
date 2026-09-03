@@ -2,8 +2,9 @@ import Link from "next/link";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
+import { DateRangeFilter } from "@/components/date-range-filter";
 
-const CAMPOS_PROPRIOS = ["numero", "pedido", "codigoRevendedor", "de", "ate"];
+const CAMPOS_PROPRIOS = ["numero", "pedido", "codigoRevendedor"];
 
 export function TicketFilters({
   searchParams,
@@ -12,7 +13,7 @@ export function TicketFilters({
 }) {
   return (
     <Card>
-      <CardContent className="pt-6">
+      <CardContent className="space-y-4 pt-6">
         <form method="get" className="flex flex-wrap items-end gap-3">
           {Object.entries(searchParams)
             .filter(([k, v]) => v && !CAMPOS_PROPRIOS.includes(k))
@@ -49,14 +50,6 @@ export function TicketFilters({
               className="w-36 placeholder:text-muted-foreground/40"
             />
           </div>
-          <div className="space-y-1">
-            <label className="text-xs text-muted-foreground">De</label>
-            <Input type="date" name="de" defaultValue={searchParams.de ?? ""} className="w-36" />
-          </div>
-          <div className="space-y-1">
-            <label className="text-xs text-muted-foreground">Até</label>
-            <Input type="date" name="ate" defaultValue={searchParams.ate ?? ""} className="w-36" />
-          </div>
           <Button type="submit" variant="secondary">
             Filtrar
           </Button>
@@ -64,6 +57,7 @@ export function TicketFilters({
             Limpar
           </Link>
         </form>
+        <DateRangeFilter basePath="/tickets" sp={searchParams} />
       </CardContent>
     </Card>
   );
