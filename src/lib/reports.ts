@@ -76,10 +76,6 @@ function tempoPrimeiraResposta(c: ChamadoReportRow, calendarios: CalendarioPorPd
 export function slaStats(chamados: ChamadoReportRow[], now: Date = new Date()) {
   let cumpridos = 0;
   let vencidos = 0;
-  // Só os vencidos que já foram finalizados (não os ainda em aberto e
-  // vencidos) — vira a base de cumpridoPctFinalizados, que mede a qualidade
-  // do que já foi resolvido, sem diluir com chamado que ainda está aberto.
-  let vencidosFinalizados = 0;
   let emRisco = 0;
   let semSla = 0;
 
@@ -92,12 +88,12 @@ export function slaStats(chamados: ChamadoReportRow[], now: Date = new Date()) {
     if (finalizadoOuCancelado) {
       if (c.status === "CANCELADO") continue;
       if (c.finalizadoEm && c.finalizadoEm <= c.slaVencimentoEm) cumpridos++;
-      else {
-        vencidos++;
-        vencidosFinalizados++;
-      }
+      else vencidos++;
     } else {
       if (now > c.slaVencimentoEm) {
+        // Ainda em aberto, mas já passou do prazo — o resultado já está
+        // decidido (não tem como virar "cumprido" depois), então conta como
+        // vencido mesmo sem estar finalizado.
         vencidos++;
       } else {
         const prazoTotalMs = c.slaVencimentoEm.getTime() - c.createdAt.getTime();
@@ -110,22 +106,21 @@ export function slaStats(chamados: ChamadoReportRow[], now: Date = new Date()) {
   const consideraveis = chamados.length - semSla;
   const pct = (n: number) => (consideraveis > 0 ? Math.round((n / consideraveis) * 100) : 0);
 
-  // Entre os chamados JÁ finalizados (excluindo cancelados) com SLA — não
-  // conta quem ainda está em aberto, então não cai só porque a fila cresceu.
-  const finalizadosComSla = cumpridos + vencidosFinalizados;
-  const cumpridoPctFinalizados =
-    finalizadosComSla > 0 ? Math.round((cumpridos / finalizadosComSla) * 100) : 0;
+  // cumpridoPct só considera quem já teve o resultado decidido (cumpridos +
+  // vencidos) — chamado ainda dentro do prazo não entra, porque ainda pode
+  // virar cumprido. Sem isso, a fila de chamados em aberto dilui o número
+  // pra baixo mesmo sem nada ter vencido de fato.
+  const decididos = cumpridos + vencidos;
+  const cumpridoPct = decididos > 0 ? Math.round((cumpridos / decididos) * 100) : 0;
 
   return {
     total: chamados.length,
     cumpridos,
     vencidos,
     emRisco,
-    cumpridoPct: pct(cumpridos),
+    cumpridoPct,
     vencidoPct: pct(vencidos),
     emRiscoPct: pct(emRisco),
-    finalizadosComSla,
-    cumpridoPctFinalizados,
   };
 }
 

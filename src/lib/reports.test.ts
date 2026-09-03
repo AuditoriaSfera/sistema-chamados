@@ -101,10 +101,10 @@ describe("slaStats", () => {
     expect(stats.total).toBe(1);
   });
 
-  // Regressão: um chamado ainda aberto (não vencido) diluía o cumpridoPct
-  // geral mesmo sem nenhum vencido — cumpridoPctFinalizados isola só quem já
-  // foi resolvido, então não cai só porque a fila cresceu.
-  it("cumpridoPctFinalizados não é diluído por chamado ainda em aberto", () => {
+  // Regressão: um chamado ainda aberto e dentro do prazo não pode diluir o
+  // cumpridoPct — o resultado dele ainda não foi decidido, então fica fora
+  // da conta até virar cumprido ou vencido de fato.
+  it("cumpridoPct não é diluído por chamado ainda em aberto e dentro do prazo", () => {
     const finalizadoNoPrazo = chamado({
       status: "FINALIZADO",
       finalizadoEm: new Date("2026-08-11T10:00:00"),
@@ -116,15 +116,16 @@ describe("slaStats", () => {
       slaVencimentoEm: new Date("2026-08-13T00:00:00"), // bem dentro do prazo, não vencido
     });
     const stats = slaStats([finalizadoNoPrazo, aindaAberto], now);
-    expect(stats.cumpridoPct).toBe(50); // diluído pelo chamado em aberto
-    expect(stats.cumpridoPctFinalizados).toBe(100); // só considera quem já foi resolvido
-    expect(stats.finalizadosComSla).toBe(1);
+    expect(stats.cumpridoPct).toBe(100); // só o finalizado no prazo tem resultado decidido
   });
 
-  it("cumpridoPctFinalizados conta finalizado fora do prazo, mas não o ainda aberto e vencido", () => {
-    const finalizadoAtrasado = chamado({
+  // Chamado ainda aberto mas já vencido já tem resultado decidido — não tem
+  // como virar "cumprido" depois — então entra no cumpridoPct mesmo sem
+  // nunca ter sido finalizado.
+  it("cumpridoPct cai quando um chamado ainda aberto já passou do prazo", () => {
+    const finalizadoNoPrazo = chamado({
       status: "FINALIZADO",
-      finalizadoEm: new Date("2026-08-11T14:00:00"),
+      finalizadoEm: new Date("2026-08-11T10:00:00"),
       slaVencimentoEm: new Date("2026-08-11T12:00:00"),
     });
     const abertoEVencido = chamado({
@@ -132,10 +133,9 @@ describe("slaStats", () => {
       createdAt: new Date("2026-08-10T00:00:00"),
       slaVencimentoEm: new Date("2026-08-11T00:00:00"), // já passou, mas nunca foi finalizado
     });
-    const stats = slaStats([finalizadoAtrasado, abertoEVencido], now);
-    expect(stats.vencidos).toBe(2); // ambos contam pro vencido geral
-    expect(stats.finalizadosComSla).toBe(1); // só o finalizado entra na base
-    expect(stats.cumpridoPctFinalizados).toBe(0);
+    const stats = slaStats([finalizadoNoPrazo, abertoEVencido], now);
+    expect(stats.vencidos).toBe(1);
+    expect(stats.cumpridoPct).toBe(50);
   });
 });
 

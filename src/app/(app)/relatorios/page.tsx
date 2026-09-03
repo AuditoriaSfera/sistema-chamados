@@ -1,7 +1,6 @@
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/session";
 import { canViewReports, getVisiblePdvIds } from "@/lib/permissions";
-import { STATUS_FINAIS } from "@/lib/constants";
 import { buildChamadoWhere } from "@/lib/tickets";
 import { redirect } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,7 +17,6 @@ import Link from "next/link";
 import {
   Inbox,
   CheckCircle2,
-  BadgeCheck,
   AlertTriangle,
   Clock,
   RotateCcw,
@@ -169,11 +167,6 @@ export default async function RelatoriosPage({
 
   const chamadosCumpridoSla = rows.filter((c) => classificarCumprimentoSla(c) === "cumprido");
   const chamadosVencidoSla = rows.filter((c) => classificarCumprimentoSla(c) === "vencido");
-  // Só os já finalizados (não cancelados) com SLA — base do "SLA cumprido dos
-  // resolvidos", que não conta quem ainda está em aberto.
-  const chamadosResolvidosComSla = rows.filter(
-    (c) => STATUS_FINAIS.includes(c.status) && c.status !== "CANCELADO" && c.slaVencimentoEm
-  );
   const chamadosComTempoResolucao = rows
     .map((c) => ({ c, duracao: tempoResolucao(c, calendarioPorPdv) }))
     .filter((v): v is { c: ChamadoReportRow; duracao: NonNullable<typeof v.duracao> } => v.duracao !== null);
@@ -196,7 +189,7 @@ export default async function RelatoriosPage({
         searchParams={sp}
       />
 
-      <div className="grid grid-cols-6 gap-4">
+      <div className="grid grid-cols-5 gap-4">
         <ExportableSummaryCard
           csvFilename="chamados-detalhe"
           csvHeaders={CHAMADO_HEADERS}
@@ -211,17 +204,8 @@ export default async function RelatoriosPage({
           csvHeaders={CHAMADO_HEADERS}
           csvRows={chamadosCumpridoSla.map(chamadoRow)}
         >
-          <SummaryCard label="SLA cumprido (do total)" icon={CheckCircle2} color="emerald">
+          <SummaryCard label="SLA cumprido" icon={CheckCircle2} color="emerald">
             <p className="text-2xl font-semibold text-emerald-600">{sla.cumpridoPct}%</p>
-          </SummaryCard>
-        </ExportableSummaryCard>
-        <ExportableSummaryCard
-          csvFilename="sla-cumprido-resolvidos-detalhe"
-          csvHeaders={CHAMADO_HEADERS}
-          csvRows={chamadosResolvidosComSla.map(chamadoRow)}
-        >
-          <SummaryCard label="SLA cumprido (dos resolvidos)" icon={BadgeCheck} color="emerald">
-            <p className="text-2xl font-semibold text-emerald-600">{sla.cumpridoPctFinalizados}%</p>
           </SummaryCard>
         </ExportableSummaryCard>
         <ExportableSummaryCard
