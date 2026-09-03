@@ -497,6 +497,19 @@ function ReportCard({
         })
       : filteredRows;
 
+  // Soma só as colunas onde toda linha exibida tem número — percentuais,
+  // durações formatadas ("1.8h") e texto ficam em branco, já que somar isso
+  // não faria sentido.
+  const totalRow: (string | number | null)[] | null =
+    displayRows.length > 0
+      ? headers.map((_, colIndex) => {
+          if (colIndex === 0) return "Total";
+          const valores = displayRows.map((r) => r[colIndex]);
+          const todosNumericos = valores.every((v) => typeof v === "number");
+          return todosNumericos ? valores.reduce((acc: number, v) => acc + (v as number), 0) : null;
+        })
+      : null;
+
   return (
     <Card className={cn("border-l-4", corBorderClasses(color))}>
       <CardHeader className="flex flex-row items-center justify-between">
@@ -508,7 +521,11 @@ function ReportCard({
           {filtroOptions.length > 1 && (
             <MultiSelectFilter paramName={filterKey} label={headers[0]} options={filtroOptions} />
           )}
-          <ExportCsvButton filename={csvFilename} headers={headers} rows={displayRows} />
+          <ExportCsvButton
+            filename={csvFilename}
+            headers={headers}
+            rows={totalRow ? [...displayRows, totalRow] : displayRows}
+          />
         </div>
       </CardHeader>
       <CardContent>
@@ -551,6 +568,15 @@ function ReportCard({
                 <TableCell colSpan={headers.length} className="text-center text-sm text-muted-foreground py-6">
                   Sem dados no período.
                 </TableCell>
+              </TableRow>
+            )}
+            {totalRow && (
+              <TableRow className="border-t-2 font-semibold">
+                {totalRow.map((cell, j) => (
+                  <TableCell key={j} className="text-sm">
+                    {cell ?? "—"}
+                  </TableCell>
+                ))}
               </TableRow>
             )}
           </TableBody>
