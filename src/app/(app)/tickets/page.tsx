@@ -178,7 +178,7 @@ export default async function TicketsPage({
         where: {
           chamadoId: { in: chamadoIds },
           autorId: { not: user.id },
-          lidoEm: null,
+          leituras: { none: { usuarioId: user.id } },
         },
         _count: { _all: true },
       })

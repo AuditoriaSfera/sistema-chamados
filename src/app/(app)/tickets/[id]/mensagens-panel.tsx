@@ -73,7 +73,8 @@ type Mensagem = {
   autorId: string;
   autorNome: string;
   createdAt: string;
-  lidoEm: string | null;
+  lidoPeloUsuarioAtual: boolean;
+  lidoPorAlguem: boolean;
   apagadaEm: string | null;
   anexos: MensagemAnexo[];
 };
@@ -88,7 +89,7 @@ export function MensagensPanel({
   mensagens: Mensagem[];
 }) {
   const [, startTransition] = useTransition();
-  const haNaoLidas = mensagens.some((m) => m.autorId !== currentUserId && !m.lidoEm);
+  const haNaoLidas = mensagens.some((m) => m.autorId !== currentUserId && !m.lidoPeloUsuarioAtual);
   const [corFundo, setCorFundoState] = useState(COR_FUNDO_PADRAO);
 
   useEffect(() => {
@@ -314,7 +315,7 @@ function MessageRow({
         )}
         <span className="mt-0.5 flex items-center gap-1.5 px-1 text-[11px] text-muted-foreground">
           {formatarDataHora(m.createdAt)}
-          {isOwn && !m.apagadaEm && ` · ${m.lidoEm ? "Lido" : "Enviado"}`}
+          {isOwn && !m.apagadaEm && ` · ${m.lidoPorAlguem ? "Lido" : "Enviado"}`}
           {podeApagar && (
             <button
               type="button"

@@ -33,6 +33,7 @@ model Usuario {
   chamadosAbertos  Chamado[]       @relation("ChamadoAbertoPor")
   chamadosAtendidos Chamado[]      @relation("ChamadoResponsavel")
   mensagens        Mensagem[]
+  mensagensLidas   MensagemLeitura[]
   statusHistoricos StatusHistorico[]
   anexos           Anexo[]
   pdvsProximoOperador Pdv[]        @relation("PdvProximoOperador")
@@ -270,13 +271,27 @@ model Mensagem {
   chamadoId String
   autorId   String
   texto     String
-  lidoEm    DateTime?
   createdAt DateTime  @default(now())
   apagadaEm DateTime?
 
-  chamado Chamado @relation(fields: [chamadoId], references: [id], onDelete: Cascade)
-  autor   Usuario @relation(fields: [autorId], references: [id])
-  anexos  Anexo[]
+  chamado  Chamado           @relation(fields: [chamadoId], references: [id], onDelete: Cascade)
+  autor    Usuario           @relation(fields: [autorId], references: [id])
+  anexos   Anexo[]
+  leituras MensagemLeitura[]
+}
+
+// Leitura por usuário — cada usuário com acesso ao chamado marca a mensagem
+// como lida pra si; não afeta o que os outros ainda veem como não lida.
+model MensagemLeitura {
+  id         String   @id @default(cuid())
+  mensagemId String
+  usuarioId  String
+  lidoEm     DateTime @default(now())
+
+  mensagem Mensagem @relation(fields: [mensagemId], references: [id], onDelete: Cascade)
+  usuario  Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@unique([mensagemId, usuarioId])
 }
 
 model StatusHistorico {

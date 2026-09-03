@@ -40,7 +40,11 @@ export default async function ChamadoDetailPage({
         anexos: { where: { mensagemId: null }, orderBy: { createdAt: "asc" } },
         mensagens: {
           orderBy: { createdAt: "asc" },
-          include: { autor: true, anexos: { orderBy: { createdAt: "asc" } } },
+          include: {
+            autor: true,
+            anexos: { orderBy: { createdAt: "asc" } },
+            leituras: { select: { usuarioId: true } },
+          },
         },
         statusHistoricos: { orderBy: { createdAt: "asc" }, include: { usuario: true } },
       },
@@ -153,7 +157,8 @@ export default async function ChamadoDetailPage({
             autorId: m.autorId,
             autorNome: m.autor.nome,
             createdAt: m.createdAt.toISOString(),
-            lidoEm: m.lidoEm?.toISOString() ?? null,
+            lidoPeloUsuarioAtual: m.leituras.some((l) => l.usuarioId === user.id),
+            lidoPorAlguem: m.leituras.length > 0,
             apagadaEm: m.apagadaEm?.toISOString() ?? null,
             anexos: m.anexos.map((a) => ({
               id: a.id,

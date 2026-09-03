@@ -125,9 +125,17 @@ export async function marcarMensagensComoLidas(chamadoId: string) {
   const chamado = await loadChamadoOrThrow(chamadoId);
   if (!canAccessChamado(user, chamado)) return;
 
-  await prisma.mensagem.updateMany({
-    where: { chamadoId, autorId: { not: user.id }, lidoEm: null },
-    data: { lidoEm: new Date() },
+  // Leitura é por usuário: marcar aqui não pode fazer a mensagem sumir da
+  // notificação de outro usuário que ainda não abriu o chamado.
+  const naoLidas = await prisma.mensagem.findMany({
+    where: { chamadoId, autorId: { not: user.id }, leituras: { none: { usuarioId: user.id } } },
+    select: { id: true },
+  });
+  if (naoLidas.length === 0) return;
+
+  await prisma.mensagemLeitura.createMany({
+    data: naoLidas.map((m) => ({ mensagemId: m.id, usuarioId: user.id })),
+    skipDuplicates: true,
   });
 
   revalidatePath(`/tickets/${chamadoId}`);
