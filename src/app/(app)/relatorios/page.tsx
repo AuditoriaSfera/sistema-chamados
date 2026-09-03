@@ -318,6 +318,8 @@ export default async function RelatoriosPage({
         csvFilename="servicos-mais-requisitados"
         sp={sp}
         heatmapCols={tiposServico.pdvCodigos.map((_, i) => i + 1)}
+        heatmapColunaTotal={tiposServico.pdvCodigos.length + 1}
+        heatmapLinhaTotal
       />
 
       <ReportCard
@@ -483,6 +485,15 @@ function corHeatmap(valor: number, min: number, max: number): string {
   return "text-emerald-600 dark:text-emerald-400";
 }
 
+/** Min/max dos valores numéricos > 0 de uma lista de células — base da escala do heatmap. */
+function escalaHeatmap(celulas: (string | number | null)[]) {
+  const valores = celulas.filter((v): v is number => typeof v === "number" && v > 0);
+  return {
+    min: valores.length ? Math.min(...valores) : 0,
+    max: valores.length ? Math.max(...valores) : 0,
+  };
+}
+
 function ReportCard({
   title,
   icon,
@@ -492,6 +503,8 @@ function ReportCard({
   csvFilename,
   sp,
   heatmapCols,
+  heatmapColunaTotal,
+  heatmapLinhaTotal,
 }: {
   title: string;
   icon: LucideIcon;
@@ -500,8 +513,12 @@ function ReportCard({
   rows: (string | number | null)[][];
   csvFilename: string;
   sp: Record<string, string | undefined>;
-  /** Índices de coluna (0-based) que recebem a cor de calor vermelho→verde. */
+  /** Índices de coluna (0-based) que recebem a cor de calor vermelho→verde, numa escala compartilhada entre elas. */
   heatmapCols?: number[];
+  /** Índice da coluna de Total — recebe seu próprio heatmap, numa escala separada de heatmapCols. */
+  heatmapColunaTotal?: number;
+  /** Aplica o heatmap na linha de Total também, numa escala própria (exclui o rótulo e o total geral no canto). */
+  heatmapLinhaTotal?: boolean;
 }) {
   const filterKey = `${csvFilename}_f`;
   const sortKey = `${csvFilename}_sort`;
@@ -542,13 +559,20 @@ function ReportCard({
         })
       : null;
 
-  const heatmapValores = heatmapCols
-    ? displayRows
-        .flatMap((r) => heatmapCols.map((c) => r[c]))
-        .filter((v): v is number => typeof v === "number" && v > 0)
-    : [];
-  const heatmapMin = heatmapValores.length ? Math.min(...heatmapValores) : 0;
-  const heatmapMax = heatmapValores.length ? Math.max(...heatmapValores) : 0;
+  // Cada grupo tem sua própria escala — a coluna e a linha de Total não
+  // entram na escala das colunas de dado (e vice-versa), senão o total
+  // sempre seria o número mais alto e puxaria a escala inteira pra ele.
+  const { min: heatmapMin, max: heatmapMax } = escalaHeatmap(
+    heatmapCols ? displayRows.flatMap((r) => heatmapCols.map((c) => r[c])) : []
+  );
+  const { min: heatmapColunaTotalMin, max: heatmapColunaTotalMax } = escalaHeatmap(
+    heatmapColunaTotal !== undefined ? displayRows.map((r) => r[heatmapColunaTotal]) : []
+  );
+  // Exclui o rótulo "Total" (primeira célula) e o total geral no canto
+  // (última célula) — só os subtotais por coluna entram nessa escala.
+  const { min: heatmapLinhaTotalMin, max: heatmapLinhaTotalMax } = escalaHeatmap(
+    heatmapLinhaTotal && totalRow ? totalRow.slice(1, -1) : []
+  );
 
   return (
     <Card className={cn("border-l-4", corBorderClasses(color))}>
@@ -601,9 +625,12 @@ function ReportCard({
                     key={j}
                     className={cn(
                       "text-sm",
-                      heatmapCols?.includes(j) &&
-                        typeof cell === "number" &&
-                        corHeatmap(cell, heatmapMin, heatmapMax)
+                      typeof cell === "number" &&
+                        (heatmapCols?.includes(j)
+                          ? corHeatmap(cell, heatmapMin, heatmapMax)
+                          : j === heatmapColunaTotal
+                            ? corHeatmap(cell, heatmapColunaTotalMin, heatmapColunaTotalMax)
+                            : "")
                     )}
                   >
                     {cell}
@@ -621,7 +648,17 @@ function ReportCard({
             {totalRow && (
               <TableRow className="border-t-2 font-semibold">
                 {totalRow.map((cell, j) => (
-                  <TableCell key={j} className="text-sm">
+                  <TableCell
+                    key={j}
+                    className={cn(
+                      "text-sm",
+                      heatmapLinhaTotal &&
+                        j > 0 &&
+                        j < totalRow.length - 1 &&
+                        typeof cell === "number" &&
+                        corHeatmap(cell, heatmapLinhaTotalMin, heatmapLinhaTotalMax)
+                    )}
+                  >
                     {cell ?? "—"}
                   </TableCell>
                 ))}
