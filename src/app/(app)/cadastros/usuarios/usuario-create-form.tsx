@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useRef, useEffect } from "react";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { createUsuario } from "./actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -42,13 +43,22 @@ export function UsuarioCreateForm({
   const formRef = useRef<HTMLFormElement>(null);
   const usuarioInputRef = useRef<HTMLInputElement>(null);
   const usuarioEditadoManualmente = useRef(false);
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
 
   useEffect(() => {
     if (state && !state.error) {
       formRef.current?.reset();
       usuarioEditadoManualmente.current = false;
+      if (state.novoUsuarioId) {
+        const params = new URLSearchParams(searchParams.toString());
+        params.set("novo", state.novoUsuarioId);
+        router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+      }
       onSuccess?.();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- só reage a uma nova submissão
   }, [state, onSuccess]);
 
   return (

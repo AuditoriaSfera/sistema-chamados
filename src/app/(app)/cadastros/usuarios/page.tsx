@@ -7,7 +7,10 @@ import { Badge } from "@/components/ui/badge";
 import { corBadgeClasses, corDotClasses } from "@/lib/color-palette";
 import { Card, CardContent } from "@/components/ui/card";
 import { MultiSelectFilter } from "@/components/multi-select-filter";
+import { SearchFilter } from "@/components/search-filter";
+import { ClearNovoParam } from "@/components/clear-novo-param";
 import { SortableHead, SortToggle } from "@/components/sortable-head";
+import { cn } from "@/lib/utils";
 import { NovoUsuarioDialog } from "./novo-usuario-dialog";
 import { UsuarioAtivoToggle } from "./usuario-ativo-toggle";
 import { EditarUsuarioDialog } from "./editar-usuario-dialog";
@@ -45,11 +48,13 @@ export default async function UsuariosPage({
   const idValues = new Set((sp.id ?? "").split(",").filter(Boolean));
   const perfilValues = new Set((sp.perfil ?? "").split(",").filter(Boolean));
   const ativoValues = new Set((sp.ativo ?? "").split(",").filter(Boolean));
+  const busca = (sp.busca ?? "").trim().toLowerCase();
   const filtrados = todos.filter(
     (u) =>
       (idValues.size === 0 || idValues.has(u.id)) &&
       (perfilValues.size === 0 || perfilValues.has(u.perfil)) &&
-      (ativoValues.size === 0 || ativoValues.has(String(Number(u.ativo))))
+      (ativoValues.size === 0 || ativoValues.has(String(Number(u.ativo)))) &&
+      (busca === "" || u.nome.toLowerCase().includes(busca) || u.email.toLowerCase().includes(busca))
   );
 
   const campo = sp.sort ?? "nome";
@@ -63,8 +68,11 @@ export default async function UsuariosPage({
     return direcao * cmp;
   });
 
+  const novoId = sp.novo;
+
   return (
     <div className="space-y-6">
+      <ClearNovoParam active={!!novoId} />
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-xl font-semibold">Usuários</h1>
@@ -74,6 +82,8 @@ export default async function UsuariosPage({
         </div>
         <NovoUsuarioDialog perfis={perfisAtivos} />
       </div>
+
+      <SearchFilter paramName="busca" placeholder="Buscar por nome ou usuário..." className="max-w-sm" />
 
       <Card>
         <CardContent className="pt-6">
@@ -125,11 +135,17 @@ export default async function UsuariosPage({
               {usuarios.map((u) => {
                 const podeMexer = gerenciavel(u.perfil);
                 return (
-                <TableRow key={u.id}>
+                <TableRow
+                  key={u.id}
+                  className={cn(u.id === novoId && "animate-[row-highlight-fade_4s_ease-out_forwards]")}
+                >
                   <TableCell>
-                    <Link href={`/cadastros/usuarios/${u.id}`} className="font-medium hover:underline">
-                      {u.nome}
-                    </Link>
+                    <div className="inline-flex items-center gap-2">
+                      <Link href={`/cadastros/usuarios/${u.id}`} className="font-medium hover:underline">
+                        {u.nome}
+                      </Link>
+                      {u.id === novoId && <Badge variant="default">Novo</Badge>}
+                    </div>
                   </TableCell>
                   <TableCell className="text-xs">{u.email}</TableCell>
                   <TableCell>

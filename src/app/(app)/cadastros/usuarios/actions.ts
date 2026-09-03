@@ -64,7 +64,7 @@ const usuarioSchema = z.object({
 });
 
 export async function createUsuario(
-  _prevState: { error?: string } | undefined,
+  _prevState: { error?: string; novoUsuarioId?: string } | undefined,
   formData: FormData
 ) {
   const admin = await requireAdmin();
@@ -122,7 +122,7 @@ export async function createUsuario(
   });
 
   revalidatePath("/cadastros/usuarios");
-  return {};
+  return { novoUsuarioId: usuario.id };
 }
 
 export async function toggleUsuarioAtivo(usuarioId: string, ativo: boolean) {

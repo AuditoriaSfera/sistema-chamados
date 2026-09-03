@@ -23,7 +23,7 @@ import { corBadgeClasses, corDotClasses } from "@/lib/color-palette";
 import { MultiSelectFilter } from "@/components/multi-select-filter";
 import { StickyHorizontalScrollbar } from "@/components/sticky-horizontal-scrollbar";
 import { TicketFilters } from "./ticket-filters";
-import { ClearNovoParam } from "./clear-novo-param";
+import { ClearNovoParam } from "@/components/clear-novo-param";
 import { AutoRefresh } from "@/components/auto-refresh";
 import { cn } from "@/lib/utils";
 
