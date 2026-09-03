@@ -1,11 +1,13 @@
 import Link from "next/link";
+import { Users } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { requireAdmin } from "@/lib/session";
 import { isPerfilAdministrativo, podeGerenciarAlvo } from "@/lib/permissions";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { corBadgeClasses, corDotClasses } from "@/lib/color-palette";
+import { corBadgeClasses, corDotClasses, type ColorKey } from "@/lib/color-palette";
 import { Card, CardContent } from "@/components/ui/card";
+import { SummaryCard } from "@/components/summary-card";
 import { MultiSelectFilter } from "@/components/multi-select-filter";
 import { SearchFilter } from "@/components/search-filter";
 import { ClearNovoParam } from "@/components/clear-novo-param";
@@ -50,13 +52,28 @@ export default async function UsuariosPage({
   const perfilValues = new Set((sp.perfil ?? "").split(",").filter(Boolean));
   const ativoValues = new Set((sp.ativo ?? "").split(",").filter(Boolean));
   const busca = (sp.busca ?? "").trim().toLowerCase();
-  const filtrados = todos.filter(
-    (u) =>
-      (idValues.size === 0 || idValues.has(u.id)) &&
-      (perfilValues.size === 0 || perfilValues.has(u.perfil)) &&
-      (ativoValues.size === 0 || ativoValues.has(String(Number(u.ativo)))) &&
-      (busca === "" || u.nome.toLowerCase().includes(busca) || u.email.toLowerCase().includes(busca))
+  const bateOutrosFiltros = (u: (typeof todos)[number]) =>
+    (idValues.size === 0 || idValues.has(u.id)) &&
+    (ativoValues.size === 0 || ativoValues.has(String(Number(u.ativo)))) &&
+    (busca === "" || u.nome.toLowerCase().includes(busca) || u.email.toLowerCase().includes(busca));
+  // Contagem por perfil ignora o filtro de perfil atual, pra os cards sempre
+  // mostrarem a distribuição completa (respeitando os demais filtros ativos).
+  const filtradosSemPerfil = todos.filter(bateOutrosFiltros);
+  const filtrados = filtradosSemPerfil.filter(
+    (u) => perfilValues.size === 0 || perfilValues.has(u.perfil)
   );
+
+  /** Preserva os demais filtros ativos e alterna (ativa/desativa) o filtro de perfil clicado. */
+  function perfilCardHref(perfilId: string | null) {
+    const params = new URLSearchParams();
+    for (const [k, v] of Object.entries(sp)) {
+      if (v && k !== "perfil") params.set(k, v);
+    }
+    const jaAtivo = perfilId !== null && perfilValues.size === 1 && perfilValues.has(perfilId);
+    if (perfilId && !jaAtivo) params.set("perfil", perfilId);
+    const query = params.toString();
+    return query ? `${BASE_PATH}?${query}` : BASE_PATH;
+  }
 
   const campo = sp.sort ?? "nome";
   const direcao = sp.sort ? (sp.dir === "asc" ? 1 : -1) : 1;
@@ -83,6 +100,25 @@ export default async function UsuariosPage({
           </p>
         </div>
         <NovoUsuarioDialog perfis={perfisAtivos} />
+      </div>
+
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
+        <Link href={perfilCardHref(null)}>
+          <SummaryCard label="Total" icon={Users} color="slate">
+            <p className="text-2xl font-semibold">{filtrados.length}</p>
+          </SummaryCard>
+        </Link>
+        {todosPerfis
+          .filter((p) => p.ativo)
+          .map((p) => (
+            <Link key={p.id} href={perfilCardHref(p.id)}>
+              <SummaryCard label={p.nome} icon={Users} color={p.cor as ColorKey}>
+                <p className="text-2xl font-semibold">
+                  {filtradosSemPerfil.filter((u) => u.perfil === p.id).length}
+                </p>
+              </SummaryCard>
+            </Link>
+          ))}
       </div>
 
       <SearchFilter paramName="busca" placeholder="Buscar por nome ou usuário..." className="max-w-sm" />
