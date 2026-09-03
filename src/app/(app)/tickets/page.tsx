@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { MessageCircle, ArrowUp, ArrowDown, ArrowUpDown, ExternalLink, UserCheck } from "lucide-react";
+import { MessageCircle, ArrowUp, ArrowDown, ArrowUpDown, ExternalLink, UserCheck, AlertTriangle } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/session";
 import {
@@ -10,6 +10,7 @@ import {
   tempoConclusaoChamado,
   SEM_RESPONSAVEL_VALUE,
 } from "@/lib/tickets";
+import { classificarCumprimentoSla } from "@/lib/reports";
 import type { PdvCalendar } from "@/lib/business-calendar";
 import { formatarDataHora } from "@/lib/datas";
 import { canOpenTicket, canChangeStatus, getVisiblePdvIds } from "@/lib/permissions";
@@ -331,6 +332,16 @@ export default async function TicketsPage({
                 <TableHead className="text-center">SLA (Total / Útil)</TableHead>
                 <TableHead className="text-center">
                   <MultiSelectFilter
+                    paramName="foraPrazo"
+                    label="Fora do prazo"
+                    options={[
+                      { value: "1", label: "Fora do prazo" },
+                      { value: "0", label: "Dentro do prazo" },
+                    ]}
+                  />
+                </TableHead>
+                <TableHead className="text-center">
+                  <MultiSelectFilter
                     paramName="assumido"
                     label="Assumir"
                     options={[
@@ -358,6 +369,7 @@ export default async function TicketsPage({
                 const pdvCalendar = calendarioPorPdv.get(c.pdvId) ?? { horarios: [], feriados: [] };
                 const conclusao = c.finalizadoEm ? tempoConclusaoChamado(c, pdvCalendar) : null;
                 const alerta = classificarAlertaVencimento(c, config.alertaVencimentoHoras, pdvCalendar);
+                const foraDoPrazo = classificarCumprimentoSla(c) === "vencido";
 
                 return (
                   <TableRow
@@ -431,6 +443,16 @@ export default async function TicketsPage({
                         </span>
                       ) : (
                         <span className="text-muted-foreground">—</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-center">
+                      {foraDoPrazo && (
+                        <span
+                          title="Fora do prazo"
+                          className="inline-flex items-center justify-center text-red-600 dark:text-red-400"
+                        >
+                          <AlertTriangle className="size-4" />
+                        </span>
                       )}
                     </TableCell>
                     <TableCell className="text-center">

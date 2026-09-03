@@ -20,6 +20,25 @@ function parseMulti(valor: string | undefined): string[] | undefined {
 }
 
 /**
+ * "Fora do prazo" no mesmo critério de classificarCumprimentoSla (reports.ts):
+ * chamado finalizado que passou do prazo continua marcado mesmo depois de
+ * finalizado (não reseta); chamado ainda aberto entra assim que o prazo vira.
+ * Cancelado nunca conta — não teve um veredito de SLA.
+ */
+function chamadoForaDoPrazoWhere(): Prisma.ChamadoWhereInput {
+  return {
+    slaVencimentoEm: { not: null },
+    OR: [
+      {
+        status: "FINALIZADO",
+        OR: [{ finalizadoEm: null }, { finalizadoEm: { gt: prisma.chamado.fields.slaVencimentoEm } }],
+      },
+      { status: { notIn: STATUS_FINAIS }, slaVencimentoEm: { lt: new Date() } },
+    ],
+  };
+}
+
+/**
  * Where de escopo (perfil/PDV/equipe) + filtros de URL, compartilhado entre
  * a listagem de chamados e os relatórios. Os filtros de seleção (status,
  * prioridade, PDV, serviço, solicitante, operador) aceitam múltiplos valores
@@ -69,10 +88,19 @@ export function buildChamadoWhere(
     }
   }
 
+  const andConditions: Prisma.ChamadoWhereInput[] = [];
+
   const assumidoValues = parseMulti(sp.assumido);
   if (assumidoValues?.length === 1) {
-    where.AND = [assumidoValues[0] === "1" ? { responsavelId: { not: null } } : { responsavelId: null }];
+    andConditions.push(assumidoValues[0] === "1" ? { responsavelId: { not: null } } : { responsavelId: null });
   }
+
+  const foraPrazoValues = parseMulti(sp.foraPrazo);
+  if (foraPrazoValues?.length === 1) {
+    andConditions.push(foraPrazoValues[0] === "1" ? chamadoForaDoPrazoWhere() : { NOT: chamadoForaDoPrazoWhere() });
+  }
+
+  if (andConditions.length) where.AND = andConditions;
 
   if (sp.numero) {
     const numeroBuscado = parseInt(sp.numero.replace(/\D/g, ""), 10);
