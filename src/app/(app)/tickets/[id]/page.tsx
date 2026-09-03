@@ -8,6 +8,9 @@ import { canAccessChamado, canCancelOrReopenAny, canChangeStatus } from "@/lib/p
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SlaBadge, StatusBadge } from "@/lib/ticket-badges";
 import { formatarNumeroChamado } from "@/lib/tickets";
+import { classificarSla } from "@/lib/reports";
+import { formatarDuracaoSla, formatarPrazoRelativo } from "@/lib/sla-format";
+import { cn } from "@/lib/utils";
 import { MensagensPanel } from "./mensagens-panel";
 import { StatusPanel } from "./status-panel";
 import { ReaberturaPanel } from "./reabertura-panel";
@@ -50,6 +53,7 @@ export default async function ChamadoDetailPage({
   const statusMap = new Map(statuses.map((s) => [s.id, s]));
   const statusInfo = (chave: string) => statusMap.get(chave) ?? { nome: chave, cor: "slate" };
   const statusesAtivos = statuses.filter((s) => s.ativo);
+  const alertaSla = classificarSla(chamado);
 
   return (
     <div className="grid grid-cols-3 gap-6">
@@ -68,6 +72,22 @@ export default async function ChamadoDetailPage({
             </h1>
             <StatusBadge nome={statusInfo(chamado.status).nome} cor={statusInfo(chamado.status).cor} />
             <SlaBadge nome={chamado.slaPreset.nome} cor={chamado.slaPreset.cor} />
+            <span className="text-sm text-muted-foreground">
+              {formatarDuracaoSla(chamado.slaPreset.duracao, chamado.slaPreset.unidade)}
+              {chamado.slaVencimentoEm && alertaSla && (
+                <>
+                  {" · "}
+                  <span
+                    className={cn(
+                      alertaSla === "vencido" && "font-medium text-destructive",
+                      alertaSla === "risco" && "font-medium text-amber-600 dark:text-amber-400"
+                    )}
+                  >
+                    {formatarPrazoRelativo(chamado.slaVencimentoEm)}
+                  </span>
+                </>
+              )}
+            </span>
           </div>
           <p className="text-sm text-muted-foreground">
             {chamado.pdv.codigo} — {chamado.pdv.nome}

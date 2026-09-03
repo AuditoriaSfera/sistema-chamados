@@ -23,3 +23,9 @@ export function fmtHoras(h: number | null): string {
   if (h < 48) return `${h.toFixed(1)}h`;
   return `${(h / 24).toFixed(1)}d`;
 }
+
+/** "vence em 3.2h" quando o prazo ainda não passou, "vencido há 2.1h" quando já passou. */
+export function formatarPrazoRelativo(alvo: Date, agora: Date = new Date()): string {
+  const diffHoras = (alvo.getTime() - agora.getTime()) / (1000 * 60 * 60);
+  return diffHoras >= 0 ? `vence em ${fmtHoras(diffHoras)}` : `vencido há ${fmtHoras(-diffHoras)}`;
+}
