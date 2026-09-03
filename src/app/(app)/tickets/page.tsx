@@ -329,7 +329,16 @@ export default async function TicketsPage({
                   Finalizado em
                 </SortableHead>
                 <TableHead className="text-center">SLA (Total / Útil)</TableHead>
-                <TableHead className="text-center">Assumir</TableHead>
+                <TableHead className="text-center">
+                  <MultiSelectFilter
+                    paramName="assumido"
+                    label="Assumir"
+                    options={[
+                      { value: "1", label: "Assumido" },
+                      { value: "0", label: "Não assumido" },
+                    ]}
+                  />
+                </TableHead>
                 <TableHead className="text-center">
                   <MultiSelectFilter
                     paramName="operadorId"

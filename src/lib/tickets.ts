@@ -69,6 +69,11 @@ export function buildChamadoWhere(
     }
   }
 
+  const assumidoValues = parseMulti(sp.assumido);
+  if (assumidoValues?.length === 1) {
+    where.AND = [assumidoValues[0] === "1" ? { responsavelId: { not: null } } : { responsavelId: null }];
+  }
+
   if (sp.numero) {
     const numeroBuscado = parseInt(sp.numero.replace(/\D/g, ""), 10);
     if (!Number.isNaN(numeroBuscado)) where.numero = numeroBuscado;
