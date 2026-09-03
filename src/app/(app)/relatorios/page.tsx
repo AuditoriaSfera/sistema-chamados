@@ -301,6 +301,7 @@ export default async function RelatoriosPage({
         ])}
         csvFilename="servicos-mais-requisitados"
         sp={sp}
+        heatmapCols={tiposServico.pdvCodigos.map((_, i) => i + 1)}
       />
 
       <ReportCard
@@ -454,6 +455,18 @@ function reportSortHref(
   return `/relatorios?${params.toString()}`;
 }
 
+/** Vermelho (valor mais alto) a verde (mais baixo) — zero fica com a cor padrão, sem tingir. */
+function corHeatmap(valor: number, min: number, max: number): string {
+  if (valor <= 0) return "";
+  if (max === min) return "text-red-600 dark:text-red-400";
+  const posicao = (valor - min) / (max - min);
+  if (posicao >= 0.8) return "text-red-600 dark:text-red-400";
+  if (posicao >= 0.6) return "text-orange-600 dark:text-orange-400";
+  if (posicao >= 0.4) return "text-amber-600 dark:text-amber-400";
+  if (posicao >= 0.2) return "text-lime-600 dark:text-lime-400";
+  return "text-emerald-600 dark:text-emerald-400";
+}
+
 function ReportCard({
   title,
   icon,
@@ -462,6 +475,7 @@ function ReportCard({
   rows,
   csvFilename,
   sp,
+  heatmapCols,
 }: {
   title: string;
   icon: LucideIcon;
@@ -470,6 +484,8 @@ function ReportCard({
   rows: (string | number | null)[][];
   csvFilename: string;
   sp: Record<string, string | undefined>;
+  /** Índices de coluna (0-based) que recebem a cor de calor vermelho→verde. */
+  heatmapCols?: number[];
 }) {
   const filterKey = `${csvFilename}_f`;
   const sortKey = `${csvFilename}_sort`;
@@ -509,6 +525,14 @@ function ReportCard({
           return todosNumericos ? valores.reduce((acc: number, v) => acc + (v as number), 0) : null;
         })
       : null;
+
+  const heatmapValores = heatmapCols
+    ? displayRows
+        .flatMap((r) => heatmapCols.map((c) => r[c]))
+        .filter((v): v is number => typeof v === "number" && v > 0)
+    : [];
+  const heatmapMin = heatmapValores.length ? Math.min(...heatmapValores) : 0;
+  const heatmapMax = heatmapValores.length ? Math.max(...heatmapValores) : 0;
 
   return (
     <Card className={cn("border-l-4", corBorderClasses(color))}>
@@ -557,7 +581,15 @@ function ReportCard({
             {displayRows.map((row, i) => (
               <TableRow key={i}>
                 {row.map((cell, j) => (
-                  <TableCell key={j} className="text-sm">
+                  <TableCell
+                    key={j}
+                    className={cn(
+                      "text-sm",
+                      heatmapCols?.includes(j) &&
+                        typeof cell === "number" &&
+                        corHeatmap(cell, heatmapMin, heatmapMax)
+                    )}
+                  >
                     {cell}
                   </TableCell>
                 ))}
