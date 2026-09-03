@@ -382,7 +382,10 @@ export default async function MonitoramentoPage({
               <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-violet-500/15 text-violet-600 dark:text-violet-400">
                 <Store className="size-4" />
               </span>
-              <CardTitle className="text-base">Visão por PDV</CardTitle>
+              <div>
+                <CardTitle className="text-base">Visão por PDV</CardTitle>
+                <p className="text-xs text-muted-foreground">{somaPdvStatsTotal} chamado(s) no total</p>
+              </div>
             </div>
             <MultiSelectFilter
               paramName="visaoPdv"
@@ -437,7 +440,10 @@ export default async function MonitoramentoPage({
               <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-blue-500/15 text-blue-600 dark:text-blue-400">
                 <PieChart className="size-4" />
               </span>
-              <CardTitle className="text-base">Distribuição por status</CardTitle>
+              <div>
+                <CardTitle className="text-base">Distribuição por status</CardTitle>
+                <p className="text-xs text-muted-foreground">{chamadosParaStatus.length} chamado(s) no total</p>
+              </div>
             </div>
             <MultiSelectFilter
               paramName="statusPdv"
@@ -484,7 +490,10 @@ export default async function MonitoramentoPage({
               <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-violet-500/15 text-violet-600 dark:text-violet-400">
                 <Store className="size-4" />
               </span>
-              <CardTitle className="text-base">Ranking de PDVs</CardTitle>
+              <div>
+                <CardTitle className="text-base">Ranking de PDVs</CardTitle>
+                <p className="text-xs text-muted-foreground">{rowsParaRankingPdv.length} chamado(s) no total</p>
+              </div>
             </div>
             <MultiSelectFilter
               paramName="rankingPdvF"
@@ -510,7 +519,10 @@ export default async function MonitoramentoPage({
               <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-pink-500/15 text-pink-600 dark:text-pink-400">
                 <UserRound className="size-4" />
               </span>
-              <CardTitle className="text-base">Ranking de revendedores</CardTitle>
+              <div>
+                <CardTitle className="text-base">Ranking de revendedores</CardTitle>
+                <p className="text-xs text-muted-foreground">{rowsParaRevendedor.length} chamado(s) no total</p>
+              </div>
             </div>
             <MultiSelectFilter
               paramName="revendedorPdv"
@@ -536,7 +548,10 @@ export default async function MonitoramentoPage({
               <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-cyan-500/15 text-cyan-600 dark:text-cyan-400">
                 <Users className="size-4" />
               </span>
-              <CardTitle className="text-base">Chamados por responsável</CardTitle>
+              <div>
+                <CardTitle className="text-base">Chamados por responsável</CardTitle>
+                <p className="text-xs text-muted-foreground">{rowsParaOperador.length} chamado(s) no total</p>
+              </div>
             </div>
             <MultiSelectFilter
               paramName="operadorPdv"
@@ -565,7 +580,10 @@ export default async function MonitoramentoPage({
               <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-amber-500/15 text-amber-600 dark:text-amber-400">
                 <Award className="size-4" />
               </span>
-              <CardTitle className="text-base">Ranking de solicitantes</CardTitle>
+              <div>
+                <CardTitle className="text-base">Ranking de solicitantes</CardTitle>
+                <p className="text-xs text-muted-foreground">{rowsParaSolicitante.length} chamado(s) no total</p>
+              </div>
             </div>
             <MultiSelectFilter
               paramName="solicitantePdv"
@@ -594,7 +612,10 @@ export default async function MonitoramentoPage({
               <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-blue-500/15 text-blue-600 dark:text-blue-400">
                 <Wrench className="size-4" />
               </span>
-              <CardTitle className="text-base">Ranking de serviços</CardTitle>
+              <div>
+                <CardTitle className="text-base">Ranking de serviços</CardTitle>
+                <p className="text-xs text-muted-foreground">{rowsParaServico.length} chamado(s) no total</p>
+              </div>
             </div>
             <MultiSelectFilter
               paramName="servicoPdv"
@@ -626,7 +647,10 @@ export default async function MonitoramentoPage({
               <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-amber-500/15 text-amber-600 dark:text-amber-400">
                 <RotateCcw className="size-4" />
               </span>
-              <CardTitle className="text-base">Taxa de reabertura por PDV</CardTitle>
+              <div>
+                <CardTitle className="text-base">Taxa de reabertura por PDV</CardTitle>
+                <p className="text-xs text-muted-foreground">{rowsParaReabertura.length} chamado(s) no total</p>
+              </div>
             </div>
             <MultiSelectFilter
               paramName="reaberturaPdv"
@@ -658,7 +682,10 @@ export default async function MonitoramentoPage({
               <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
                 <Gauge className="size-4" />
               </span>
-              <CardTitle className="text-base">SLA por PDV: no prazo x fora do prazo</CardTitle>
+              <div>
+                <CardTitle className="text-base">SLA por PDV: no prazo x fora do prazo</CardTitle>
+                <p className="text-xs text-muted-foreground">{rowsParaSla.length} chamado(s) no total</p>
+              </div>
             </div>
             <MultiSelectFilter
               paramName="slaPdv"
@@ -713,7 +740,10 @@ export default async function MonitoramentoPage({
             <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-violet-500/15 text-violet-600 dark:text-violet-400">
               <Layers className="size-4" />
             </span>
-            <CardTitle className="text-base">Quantidade de chamados por SLA</CardTitle>
+            <div>
+              <CardTitle className="text-base">Quantidade de chamados por SLA</CardTitle>
+              <p className="text-xs text-muted-foreground">{rowsParaSlaPreset.length} chamado(s) no total</p>
+            </div>
           </div>
           <MultiSelectFilter
             paramName="slaPresetPdv"
@@ -760,7 +790,10 @@ export default async function MonitoramentoPage({
             <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-cyan-500/15 text-cyan-600 dark:text-cyan-400">
               <Clock className="size-4" />
             </span>
-            <CardTitle className="text-base">Tempo médio de resolução por PDV</CardTitle>
+            <div>
+              <CardTitle className="text-base">Tempo médio de resolução por PDV</CardTitle>
+              <p className="text-xs text-muted-foreground">{rowsParaTempoResolucao.length} chamado(s) no total</p>
+            </div>
           </div>
           <MultiSelectFilter
             paramName="tempoResPdv"
