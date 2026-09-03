@@ -137,3 +137,41 @@ describe("businessMinutesBetween", () => {
     expect(minutos).toBe(180);
   });
 });
+
+// vitest.config.mts fixa TZ=America/Sao_Paulo pros testes, então `d("...")` (sem
+// offset) sempre bate com o horário de Brasília aqui — isso escondeu, por anos,
+// um bug onde o cálculo usava o fuso do RUNTIME (getHours/getDay) em vez de
+// Brasília, e no Railway (runtime em UTC) o expediente era lido 3h errado.
+// Estes testes usam `Date.UTC(...)` — um instante inequívoco, independente de
+// qualquer TZ de ambiente — pra travar que o cálculo sempre trata os horários
+// do PDV como horário de Brasília, não importa em que fuso o processo roda.
+describe("cálculo é imune ao fuso horário do runtime (não repete o bug do Railway)", () => {
+  const calSlaCritico: PdvCalendar = {
+    horarios: [
+      { diaSemana: 1, abre: true, horarioInicio: "09:00", horarioFim: "18:00" },
+      { diaSemana: 2, abre: true, horarioInicio: "09:00", horarioFim: "18:00" },
+      { diaSemana: 3, abre: true, horarioInicio: "09:00", horarioFim: "18:00" },
+      { diaSemana: 4, abre: true, horarioInicio: "09:00", horarioFim: "18:00" },
+      { diaSemana: 5, abre: true, horarioInicio: "09:00", horarioFim: "18:00" },
+      { diaSemana: 6, abre: true, horarioInicio: "09:00", horarioFim: "13:00" },
+      { diaSemana: 0, abre: false, horarioInicio: "00:00", horarioFim: "00:00" },
+    ],
+    feriados: [],
+  };
+
+  it("SLA de 4h úteis abrindo quarta 17:45 BRT vence quinta 12:45 BRT, não 10:00", () => {
+    // 2026-09-02 17:45 BRT (UTC-3) = 20:45Z.
+    const from = new Date(Date.UTC(2026, 8, 2, 20, 45, 0));
+    const vencimento = addBusinessMinutes(from, 240, calSlaCritico);
+    // 2026-09-03 12:45 BRT = 15:45Z — 15min de quarta + 3h45 de quinta a partir das 9h.
+    expect(vencimento.toISOString()).toBe(new Date(Date.UTC(2026, 8, 3, 15, 45, 0)).toISOString());
+  });
+
+  it("chamado aberto às 23h30 BRT usa o expediente do dia certo em Brasília, não em UTC", () => {
+    // 2026-09-02 23:30 BRT = 2026-09-03T02:30Z — já é o dia seguinte em UTC.
+    const from = new Date(Date.UTC(2026, 8, 3, 2, 30, 0));
+    const vencimento = addBusinessMinutes(from, 60, calSlaCritico);
+    // Em Brasília ainda é quarta à noite (fora do expediente) — pula pra quinta 09:00 + 1h.
+    expect(vencimento.toISOString()).toBe(new Date(Date.UTC(2026, 8, 3, 13, 0, 0)).toISOString());
+  });
+});
