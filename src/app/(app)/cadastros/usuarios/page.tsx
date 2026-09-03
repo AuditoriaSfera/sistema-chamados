@@ -9,6 +9,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { MultiSelectFilter } from "@/components/multi-select-filter";
 import { SearchFilter } from "@/components/search-filter";
 import { ClearNovoParam } from "@/components/clear-novo-param";
+import { ScrollToId } from "@/components/scroll-to-id";
 import { SortableHead, SortToggle } from "@/components/sortable-head";
 import { cn } from "@/lib/utils";
 import { NovoUsuarioDialog } from "./novo-usuario-dialog";
@@ -73,6 +74,7 @@ export default async function UsuariosPage({
   return (
     <div className="space-y-6">
       <ClearNovoParam active={!!novoId} />
+      <ScrollToId id={novoId} />
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-xl font-semibold">Usuários</h1>
@@ -137,6 +139,7 @@ export default async function UsuariosPage({
                 return (
                 <TableRow
                   key={u.id}
+                  id={u.id}
                   className={cn(u.id === novoId && "animate-[row-highlight-fade_4s_ease-out_forwards]")}
                 >
                   <TableCell>

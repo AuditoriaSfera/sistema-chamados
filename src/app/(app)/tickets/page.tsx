@@ -25,6 +25,7 @@ import { MultiSelectFilter } from "@/components/multi-select-filter";
 import { StickyHorizontalScrollbar } from "@/components/sticky-horizontal-scrollbar";
 import { TicketFilters } from "./ticket-filters";
 import { ClearNovoParam } from "@/components/clear-novo-param";
+import { ScrollToId } from "@/components/scroll-to-id";
 import { AutoRefresh } from "@/components/auto-refresh";
 import { cn } from "@/lib/utils";
 
@@ -211,6 +212,7 @@ export default async function TicketsPage({
     <div className="space-y-6">
       <AutoRefresh intervalMs={5000} />
       <ClearNovoParam active={!!destaqueId} />
+      <ScrollToId id={destaqueId} />
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-semibold">Chamados</h1>
@@ -374,6 +376,7 @@ export default async function TicketsPage({
                 return (
                   <TableRow
                     key={c.id}
+                    id={c.id}
                     className={cn(
                       alerta === "risco" &&
                         "bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/40 dark:hover:bg-amber-950/60",
