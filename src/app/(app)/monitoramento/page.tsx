@@ -281,7 +281,7 @@ export default async function MonitoramentoPage({
       color: "cyan" as ColorKey,
     },
     {
-      label: "Vencidos no SLA",
+      label: "Vencidos no SLA (sem finalizar)",
       valor: vencidos,
       href: "/tickets?slaVencido=1",
       destaque: true,
