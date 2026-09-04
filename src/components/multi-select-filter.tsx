@@ -65,6 +65,24 @@ export function MultiSelectFilter({
                 className="h-8 w-full rounded-md border border-input bg-transparent px-2.5 text-sm outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
               />
             </div>
+            <div className="flex items-center justify-between border-b border-border px-2.5 py-1 text-xs">
+              <button
+                type="button"
+                disabled={selecionados.length === options.length}
+                onClick={() => handleChange(options)}
+                className="text-primary hover:underline disabled:pointer-events-none disabled:text-muted-foreground/50"
+              >
+                Marcar todos
+              </button>
+              <button
+                type="button"
+                disabled={selecionados.length === 0}
+                onClick={() => handleChange([])}
+                className="text-muted-foreground hover:underline disabled:pointer-events-none disabled:text-muted-foreground/50"
+              >
+                Desmarcar todos
+              </button>
+            </div>
             <Combobox.Empty className="px-3 py-4 text-center text-sm text-muted-foreground">
               Nenhum resultado encontrado.
             </Combobox.Empty>
