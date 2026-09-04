@@ -13,6 +13,7 @@ import {
 import { classificarCumprimentoSla } from "@/lib/reports";
 import type { PdvCalendar } from "@/lib/business-calendar";
 import { formatarDataHora } from "@/lib/datas";
+import { fmtHoras } from "@/lib/sla-format";
 import { canOpenTicket, canChangeStatus, getVisiblePdvIds } from "@/lib/permissions";
 import { AssumirIconButton } from "./assumir-icon-button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -30,11 +31,6 @@ import { AutoRefresh } from "@/components/auto-refresh";
 import { cn } from "@/lib/utils";
 
 const PAGE_SIZE = 100;
-
-function fmtHoras(h: number) {
-  if (h < 48) return `${h.toFixed(1)}h`;
-  return `${(h / 24).toFixed(1)}d`;
-}
 
 const fmtDataHora = formatarDataHora;
 

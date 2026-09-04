@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SlaBadge, StatusBadge } from "@/lib/ticket-badges";
 import { formatarNumeroChamado } from "@/lib/tickets";
 import { classificarSla } from "@/lib/reports";
-import { formatarDuracaoSla, formatarPrazoRelativo } from "@/lib/sla-format";
+import { formatarDuracaoSla, formatarPrazoRelativo, formatarResultadoSla } from "@/lib/sla-format";
 import { cn } from "@/lib/utils";
 import { MensagensPanel } from "./mensagens-panel";
 import { StatusPanel } from "./status-panel";
@@ -88,6 +88,20 @@ export default async function ChamadoDetailPage({
                     )}
                   >
                     {formatarPrazoRelativo(chamado.slaVencimentoEm)}
+                  </span>
+                </>
+              )}
+              {chamado.status === "FINALIZADO" && chamado.finalizadoEm && chamado.slaVencimentoEm && (
+                <>
+                  {" · "}
+                  <span
+                    className={cn(
+                      chamado.finalizadoEm > chamado.slaVencimentoEm
+                        ? "font-medium text-destructive"
+                        : "text-emerald-600 dark:text-emerald-400"
+                    )}
+                  >
+                    {formatarResultadoSla(chamado.finalizadoEm, chamado.slaVencimentoEm)}
                   </span>
                 </>
               )}

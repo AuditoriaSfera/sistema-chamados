@@ -17,26 +17,28 @@ export function duracaoSlaEmHoras(duracao: number, unidade: string): number {
   return unidade === "DIAS" ? duracao * 24 : duracao;
 }
 
-/** Formata uma duração em horas decimais pra exibição — vira dias quando passa de 48h. */
+/** Formata uma duração em horas pra exibição — "42min" abaixo de 1h, "6h 42min" acima
+ * (sem o "42min" quando é hora cheia), e vira dias quando passa de 48h. */
 export function fmtHoras(h: number | null): string {
   if (h === null) return "—";
-  if (h < 48) return `${h.toFixed(1)}h`;
-  return `${(h / 24).toFixed(1)}d`;
+  if (h >= 48) return `${(h / 24).toFixed(1)}d`;
+  const totalMin = Math.round(h * 60);
+  if (totalMin < 60) return `${totalMin}min`;
+  const horas = Math.floor(totalMin / 60);
+  const minutos = totalMin % 60;
+  return minutos === 0 ? `${horas}h` : `${horas}h ${minutos}min`;
 }
 
-/** Formata uma duração em horas decimais, usando minutos quando for menos de 1h (mais legível que "0.3h"). */
-function fmtHorasOuMinutos(h: number): string {
-  if (h < 1) {
-    const minutos = Math.round(h * 60);
-    if (minutos < 60) return `${minutos}min`;
-  }
-  return fmtHoras(h);
-}
-
-/** "vence em 3.2h" quando o prazo ainda não passou, "vencido há 18min" quando já passou. */
+/** "vence em 3h 12min" quando o prazo ainda não passou, "vencido há 18min" quando já passou. */
 export function formatarPrazoRelativo(alvo: Date, agora: Date = new Date()): string {
   const diffHoras = (alvo.getTime() - agora.getTime()) / (1000 * 60 * 60);
+  return diffHoras >= 0 ? `vence em ${fmtHoras(diffHoras)}` : `vencido há ${fmtHoras(-diffHoras)}`;
+}
+
+/** Resultado do SLA de um chamado já finalizado: dentro do prazo (com folga) ou fora (com atraso). */
+export function formatarResultadoSla(finalizadoEm: Date, slaVencimentoEm: Date): string {
+  const diffHoras = (slaVencimentoEm.getTime() - finalizadoEm.getTime()) / (1000 * 60 * 60);
   return diffHoras >= 0
-    ? `vence em ${fmtHorasOuMinutos(diffHoras)}`
-    : `vencido há ${fmtHorasOuMinutos(-diffHoras)}`;
+    ? `finalizado ${fmtHoras(diffHoras)} antes do prazo`
+    : `finalizado ${fmtHoras(-diffHoras)} após o prazo`;
 }
