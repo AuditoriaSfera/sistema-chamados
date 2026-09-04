@@ -245,6 +245,13 @@ export async function changeStatus(
     return { error: "Seu perfil não pode alterar o status deste chamado." };
   }
 
+  // Sem isso, o chamado avança de status (até ser finalizado) sem nunca ter
+  // um responsável — ninguém fica de fato encarregado dele. O solicitante
+  // cancelando o próprio chamado é a exceção: ele não assume chamados.
+  if (!isCancelamentoProprio && !chamado.responsavelId) {
+    return { error: "Alguém precisa assumir o chamado antes de mudar o status." };
+  }
+
   if (STATUS_FINAIS.includes(chamado.status) || novoStatus === chamado.status) {
     return { error: `Transição de ${chamado.status} para ${novoStatus} não é permitida.` };
   }

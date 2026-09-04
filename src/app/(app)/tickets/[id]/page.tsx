@@ -201,7 +201,13 @@ export default async function ChamadoDetailPage({
         )}
 
         {canChangeStatus(user) ? (
-          <StatusPanel chamadoId={chamado.id} statusAtual={chamado.status} statuses={statusesAtivos} />
+          chamado.responsavelId ? (
+            <StatusPanel chamadoId={chamado.id} statusAtual={chamado.status} statuses={statusesAtivos} />
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              Assuma o chamado antes de alterar o status.
+            </p>
+          )
         ) : chamado.abertoPorId === user.id || canCancelOrReopenAny(user) ? (
           <StatusPanel
             chamadoId={chamado.id}
