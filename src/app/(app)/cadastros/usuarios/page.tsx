@@ -12,7 +12,7 @@ import { MultiSelectFilter } from "@/components/multi-select-filter";
 import { SearchFilter } from "@/components/search-filter";
 import { ClearNovoParam } from "@/components/clear-novo-param";
 import { ScrollToId } from "@/components/scroll-to-id";
-import { SortableHead, SortToggle } from "@/components/sortable-head";
+import { SortToggle } from "@/components/sortable-head";
 import { cn } from "@/lib/utils";
 import { NovoUsuarioDialog } from "./novo-usuario-dialog";
 import { UsuarioAtivoToggle } from "./usuario-ativo-toggle";
@@ -51,10 +51,12 @@ export default async function UsuariosPage({
   const idValues = new Set((sp.id ?? "").split(",").filter(Boolean));
   const perfilValues = new Set((sp.perfil ?? "").split(",").filter(Boolean));
   const ativoValues = new Set((sp.ativo ?? "").split(",").filter(Boolean));
+  const vinculadoValues = new Set((sp.vinculado ?? "").split(",").filter(Boolean));
   const busca = (sp.busca ?? "").trim().toLowerCase();
   const bateOutrosFiltros = (u: (typeof todos)[number]) =>
     (idValues.size === 0 || idValues.has(u.id)) &&
     (ativoValues.size === 0 || ativoValues.has(String(Number(u.ativo)))) &&
+    (vinculadoValues.size === 0 || vinculadoValues.has(String(Number(u.pdvVinculos.length > 0)))) &&
     (busca === "" || u.nome.toLowerCase().includes(busca) || u.email.toLowerCase().includes(busca));
   // Contagem por perfil ignora o filtro de perfil atual, pra os cards sempre
   // mostrarem a distribuição completa (respeitando os demais filtros ativos).
@@ -128,7 +130,7 @@ export default async function UsuariosPage({
           <Table className="[&_th]:h-7 [&_th]:bg-muted/50 [&_th]:text-[11px] [&_th]:font-semibold [&_th]:tracking-wide [&_th]:text-muted-foreground [&_th]:uppercase">
             <TableHeader>
               <TableRow>
-                <TableHead>
+                <TableHead className="text-center">
                   <div className="inline-flex items-center gap-1">
                     <MultiSelectFilter
                       paramName="id"
@@ -138,10 +140,17 @@ export default async function UsuariosPage({
                     <SortToggle basePath={BASE_PATH} sp={sp} campo="nome" />
                   </div>
                 </TableHead>
-                <SortableHead basePath={BASE_PATH} sp={sp} campo="email">
-                  Usuário
-                </SortableHead>
-                <TableHead>
+                <TableHead className="text-center">
+                  <div className="inline-flex items-center gap-1">
+                    <MultiSelectFilter
+                      paramName="id"
+                      label="Usuário"
+                      options={todos.map((u) => ({ value: u.id, label: u.email }))}
+                    />
+                    <SortToggle basePath={BASE_PATH} sp={sp} campo="email" />
+                  </div>
+                </TableHead>
+                <TableHead className="text-center">
                   <div className="inline-flex items-center gap-1">
                     <MultiSelectFilter
                       paramName="perfil"
@@ -151,8 +160,17 @@ export default async function UsuariosPage({
                     <SortToggle basePath={BASE_PATH} sp={sp} campo="perfil" />
                   </div>
                 </TableHead>
-                <TableHead>PDVs vinculados</TableHead>
-                <TableHead>
+                <TableHead className="text-center">
+                  <MultiSelectFilter
+                    paramName="vinculado"
+                    label="PDVs vinculados"
+                    options={[
+                      { value: "1", label: "Vinculado" },
+                      { value: "0", label: "Não vinculado" },
+                    ]}
+                  />
+                </TableHead>
+                <TableHead className="text-center">
                   <div className="inline-flex items-center gap-1">
                     <MultiSelectFilter
                       paramName="ativo"
@@ -165,7 +183,7 @@ export default async function UsuariosPage({
                     <SortToggle basePath={BASE_PATH} sp={sp} campo="ativo" />
                   </div>
                 </TableHead>
-                <TableHead>Ações</TableHead>
+                <TableHead className="text-center">Ações</TableHead>
                 <TableHead></TableHead>
               </TableRow>
             </TableHeader>
@@ -178,7 +196,7 @@ export default async function UsuariosPage({
                   id={u.id}
                   className={cn(u.id === novoId && "animate-[row-highlight-fade_4s_ease-out_forwards]")}
                 >
-                  <TableCell>
+                  <TableCell className="text-center">
                     <div className="inline-flex items-center gap-2">
                       <Link href={`/cadastros/usuarios/${u.id}`} className="font-medium hover:underline">
                         {u.nome}
@@ -186,8 +204,8 @@ export default async function UsuariosPage({
                       {u.id === novoId && <Badge variant="default">Novo</Badge>}
                     </div>
                   </TableCell>
-                  <TableCell className="text-xs">{u.email}</TableCell>
-                  <TableCell>
+                  <TableCell className="text-center text-xs">{u.email}</TableCell>
+                  <TableCell className="text-center">
                     {(() => {
                       const perfil = perfilMap.get(u.perfil);
                       return perfil ? (
@@ -202,8 +220,8 @@ export default async function UsuariosPage({
                       );
                     })()}
                   </TableCell>
-                  <TableCell className="text-xs">
-                    <div className="flex items-center gap-1.5">
+                  <TableCell className="text-center text-xs">
+                    <div className="flex items-center justify-center gap-1.5">
                       <span title={u.pdvVinculos.map((v) => v.pdv.codigo).join(", ")}>
                         {u.pdvVinculos.length === 0
                           ? "—"
@@ -221,14 +239,14 @@ export default async function UsuariosPage({
                       )}
                     </div>
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="text-center">
                     <Badge variant={u.ativo ? "default" : "secondary"}>
                       {u.ativo ? "Ativo" : "Inativo"}
                     </Badge>
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="text-center">
                     {podeMexer ? (
-                      <div className="flex items-center gap-1">
+                      <div className="flex items-center justify-center gap-1">
                         <EditarUsuarioDialog usuario={u} perfis={perfisAtivos} />
                         <ExcluirUsuarioDialog usuario={u} />
                       </div>
@@ -236,7 +254,7 @@ export default async function UsuariosPage({
                       <span className="text-xs text-muted-foreground">Administrador</span>
                     )}
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="text-center">
                     {podeMexer && <UsuarioAtivoToggle usuarioId={u.id} ativo={u.ativo} />}
                   </TableCell>
                 </TableRow>
