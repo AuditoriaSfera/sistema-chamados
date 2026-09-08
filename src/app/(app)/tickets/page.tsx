@@ -6,8 +6,10 @@ import {
   buildChamadoOrderBy,
   buildChamadoWhere,
   classificarAlertaVencimento,
+  findIdsCanceladoPeloProprio,
   formatarNumeroChamado,
   tempoConclusaoChamado,
+  CANCELADO_PROPRIO_VALUE,
   SEM_RESPONSAVEL_VALUE,
 } from "@/lib/tickets";
 import { classificarCumprimentoSla } from "@/lib/reports";
@@ -120,13 +122,21 @@ export default async function TicketsPage({
   const user = await requireUser();
   const sp = await searchParams;
 
-  const where = buildChamadoWhere(user, sp);
+  // Só roda a consulta extra quando o filtro "cancelado pelo próprio" está
+  // selecionado — depende de comparar autor da última transição pra CANCELADO
+  // (relação) com quem abriu o chamado, o que o Prisma não expressa direto
+  // como filtro entre tabelas diferentes (ver findIdsCanceladoPeloProprio).
+  const extras = sp.operadorId?.split(",").includes(CANCELADO_PROPRIO_VALUE)
+    ? { canceladoProprioIds: await findIdsCanceladoPeloProprio() }
+    : undefined;
+
+  const where = buildChamadoWhere(user, sp, extras);
   const orderBy = buildChamadoOrderBy(sp);
   const paginaAtual = Math.max(1, parseInt(sp.page ?? "1", 10) || 1);
 
   // Contagem por status ignora o filtro de status atual, pra os cards sempre
   // mostrarem a distribuição completa (respeitando os demais filtros ativos).
-  const whereSemStatus = buildChamadoWhere(user, { ...sp, status: undefined });
+  const whereSemStatus = buildChamadoWhere(user, { ...sp, status: undefined }, extras);
 
   const [total, chamados, pdvs, servicos, usuarios, statusCounts, slaPresets, statuses, perfis, config] =
     await Promise.all([
@@ -360,6 +370,7 @@ export default async function TicketsPage({
                     label="Responsável"
                     options={[
                       { value: SEM_RESPONSAVEL_VALUE, label: "Sem responsável" },
+                      { value: CANCELADO_PROPRIO_VALUE, label: "Cancelado pelo próprio usuário" },
                       ...operadores.map((u) => ({ value: u.id, label: u.nome })),
                     ]}
                   />

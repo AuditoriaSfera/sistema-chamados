@@ -12,6 +12,32 @@ import {
 
 /** Valor sentinela usado no filtro de Responsável pra representar "sem responsável". */
 export const SEM_RESPONSAVEL_VALUE = "SEM_RESPONSAVEL";
+/** Valor sentinela usado no filtro de Responsável pra representar "cancelado pelo próprio solicitante". */
+export const CANCELADO_PROPRIO_VALUE = "CANCELADO_PROPRIO";
+
+/**
+ * Ids dos chamados cancelados pelo próprio solicitante sem nunca terem sido
+ * assumidos — mesmo critério usado pra exibir "Cancelado pelo próprio
+ * usuário" na listagem (tickets/page.tsx), só que resolvido via SQL porque
+ * depende de comparar o autor da ÚLTIMA transição pra CANCELADO (relação)
+ * com quem abriu o chamado (campo do próprio chamado), algo que o filtro do
+ * Prisma não expressa entre tabelas diferentes.
+ */
+export async function findIdsCanceladoPeloProprio(): Promise<string[]> {
+  const rows = await prisma.$queryRaw<{ id: string }[]>`
+    SELECT c.id FROM "Chamado" c
+    WHERE c.status = 'CANCELADO' AND c."responsavelId" IS NULL
+      AND EXISTS (
+        SELECT 1 FROM "StatusHistorico" sh
+        WHERE sh."chamadoId" = c.id AND sh.status = 'CANCELADO' AND sh."usuarioId" = c."abertoPorId"
+          AND sh."createdAt" = (
+            SELECT MAX(sh2."createdAt") FROM "StatusHistorico" sh2
+            WHERE sh2."chamadoId" = c.id AND sh2.status = 'CANCELADO'
+          )
+      )
+  `;
+  return rows.map((r) => r.id);
+}
 
 /** Separa um parâmetro de URL em valores múltiplos (ex.: "ABERTO,EM_ANDAMENTO"). */
 function parseMulti(valor: string | undefined): string[] | undefined {
@@ -46,7 +72,8 @@ function chamadoForaDoPrazoWhere(): Prisma.ChamadoWhereInput {
  */
 export function buildChamadoWhere(
   user: SessionUser,
-  sp: Record<string, string | undefined>
+  sp: Record<string, string | undefined>,
+  extras?: { canceladoProprioIds?: string[] }
 ): Prisma.ChamadoWhereInput {
   const where: Prisma.ChamadoWhereInput = {};
 
@@ -78,13 +105,25 @@ export function buildChamadoWhere(
   const operadorValues = parseMulti(sp.operadorId);
   if (operadorValues?.length) {
     const semResponsavel = operadorValues.includes(SEM_RESPONSAVEL_VALUE);
-    const ids = operadorValues.filter((v) => v !== SEM_RESPONSAVEL_VALUE);
-    if (semResponsavel && ids.length) {
-      where.OR = [{ responsavelId: { in: ids } }, { responsavelId: null }];
-    } else if (semResponsavel) {
-      where.responsavelId = null;
+    const canceladoProprio = operadorValues.includes(CANCELADO_PROPRIO_VALUE);
+    const ids = operadorValues.filter(
+      (v) => v !== SEM_RESPONSAVEL_VALUE && v !== CANCELADO_PROPRIO_VALUE
+    );
+
+    const condicoesResponsavel: Prisma.ChamadoWhereInput[] = [];
+    if (ids.length) condicoesResponsavel.push({ responsavelId: { in: ids } });
+    if (semResponsavel) condicoesResponsavel.push({ responsavelId: null });
+    if (canceladoProprio) {
+      condicoesResponsavel.push({ id: { in: extras?.canceladoProprioIds ?? [] } });
+    }
+
+    if (condicoesResponsavel.length === 1) {
+      Object.assign(where, condicoesResponsavel[0]);
+    } else if (condicoesResponsavel.length > 1) {
+      where.OR = condicoesResponsavel;
     } else {
-      where.responsavelId = { in: ids };
+      // Só valores desconhecidos na URL — não deixa passar tudo.
+      where.responsavelId = { in: [] };
     }
   }
 
