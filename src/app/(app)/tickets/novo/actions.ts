@@ -20,7 +20,10 @@ const APENAS_NUMEROS = /^\d+$/;
 const schema = z.object({
   servicoId: z.string().min(1),
   pdvId: z.string().min(1),
-  numeroPedido: z.string().regex(APENAS_NUMEROS, "Número do pedido: apenas números, sem pontos ou letras."),
+  // Validado condicionalmente depois de saber se o serviço exige pedido —
+  // serviço que não exige (Servico.exigeNumeroPedido) grava "0" direto,
+  // então aqui só passa o que veio, sem exigir formato.
+  numeroPedido: z.string().optional().default(""),
   nomeCliente: z.string().min(1).transform(capitalizarNome),
   codigoRevendedor: z
     .string()
@@ -58,6 +61,13 @@ export async function createChamado(
   const servico = await prisma.servico.findUnique({ where: { id: data.servicoId } });
   if (!servico) return { error: "Serviço inválido." };
 
+  // Serviço que não tem relação com um pedido específico (ex.: alteração de
+  // dados cadastrais) grava "0" direto, sem exigir que o número seja digitado.
+  const numeroPedido = servico.exigeNumeroPedido ? data.numeroPedido : "0";
+  if (servico.exigeNumeroPedido && !APENAS_NUMEROS.test(numeroPedido)) {
+    return { error: "Número do pedido: apenas números, sem pontos ou letras." };
+  }
+
   const pdvSelecionado = await prisma.pdv.findUnique({ where: { id: data.pdvId } });
   if (!pdvSelecionado) return { error: "PDV inválido." };
 
@@ -71,29 +81,37 @@ export async function createChamado(
   }
 
   // Número de pedido pode se repetir de propósito (ex.: placeholder "000000"
-  // quando o atendente não tem o número real) — nesse caso não é o "mesmo
-  // pedido" só porque o número bate, então sempre grava o nome/código de
-  // revendedor recém-digitado em vez de manter o que já estava salvo. Sem
-  // isso, um chamado novo ficava silenciosamente com os dados de revendedor
-  // de quem abriu o primeiro chamado com aquele número.
+  // quando o atendente não tem o número real, ou "0" fixo pra serviço que não
+  // exige pedido) — nesse caso não é o "mesmo pedido" só porque o número
+  // bate, então sempre grava o nome/código de revendedor recém-digitado em
+  // vez de manter o que já estava salvo. Sem isso, um chamado novo ficava
+  // silenciosamente com os dados de revendedor de quem abriu o primeiro
+  // chamado com aquele número.
+  //
+  // Serviço sem exigência de pedido também não trava o PDV do "0" nem
+  // verifica duplicidade — o "0" é compartilhado por qualquer PDV/cliente de
+  // propósito, não identifica um pedido real.
   const pedido = await prisma.pedido.upsert({
-    where: { numero: data.numeroPedido },
+    where: { numero: numeroPedido },
     update: {
       nomeCliente: data.nomeCliente,
       codigoRevendedor: data.codigoRevendedor,
+      ...(servico.exigeNumeroPedido ? {} : { pdvId: data.pdvId }),
     },
     create: {
-      numero: data.numeroPedido,
+      numero: numeroPedido,
       pdvId: data.pdvId,
       nomeCliente: data.nomeCliente,
       codigoRevendedor: data.codigoRevendedor,
     },
   });
-  if (pedido.pdvId !== data.pdvId) {
+  if (servico.exigeNumeroPedido && pedido.pdvId !== data.pdvId) {
     return { error: "Esse número de pedido já existe vinculado a outro PDV." };
   }
 
-  const duplicado = await findChamadoDuplicado(pedido.id, data.servicoId);
+  const duplicado = servico.exigeNumeroPedido
+    ? await findChamadoDuplicado(pedido.id, data.servicoId)
+    : null;
   if (duplicado && !data.confirmarDuplicado) {
     return { duplicado: { chamadoId: duplicado.id, status: duplicado.status } };
   }

@@ -26,6 +26,7 @@ type Servico = {
   id: string;
   nome: string;
   textoOrientacao: string | null;
+  exigeNumeroPedido: boolean;
   slaPreset: { nome: string; duracao: number; unidade: string };
 };
 type Pdv = { id: string; codigo: string; nome: string };
@@ -149,16 +150,20 @@ export function TicketCreateForm({
             onChange={(e) => setCodigoRevendedor(apenasDigitos(e.target.value))}
           />
 
-          <Label htmlFor="numeroPedido">Número do pedido</Label>
-          <Input
-            id="numeroPedido"
-            name="numeroPedido"
-            required
-            inputMode="numeric"
-            placeholder="Somente números"
-            value={numeroPedido}
-            onChange={(e) => setNumeroPedido(apenasDigitos(e.target.value))}
-          />
+          {(servicoSelecionado?.exigeNumeroPedido ?? true) && (
+            <>
+              <Label htmlFor="numeroPedido">Número do pedido</Label>
+              <Input
+                id="numeroPedido"
+                name="numeroPedido"
+                required
+                inputMode="numeric"
+                placeholder="Somente números"
+                value={numeroPedido}
+                onChange={(e) => setNumeroPedido(apenasDigitos(e.target.value))}
+              />
+            </>
+          )}
         </CardContent>
       </Card>
 

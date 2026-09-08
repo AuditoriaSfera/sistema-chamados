@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Select,
@@ -30,6 +31,7 @@ export function ServicoEditForm({
     categoria: string;
     textoOrientacao: string | null;
     slaPresetId: string;
+    exigeNumeroPedido: boolean;
   };
   slaPresets: SlaPreset[];
   defaultOpen?: boolean;
@@ -118,6 +120,10 @@ export function ServicoEditForm({
               </Select>
             </div>
           </div>
+          <label className="flex items-center gap-2 text-sm">
+            <Checkbox name="exigeNumeroPedido" defaultChecked={servico.exigeNumeroPedido} />
+            Exige número de pedido ao abrir chamado
+          </label>
           {state?.error && <p className="text-sm text-destructive">{state.error}</p>}
           <div className="flex gap-2">
             <Button type="submit" disabled={pending}>

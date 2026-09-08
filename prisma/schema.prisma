@@ -159,13 +159,17 @@ model Pedido {
 }
 
 model Servico {
-  id              String   @id @default(cuid())
-  nome            String
-  categoria       String
-  textoOrientacao String?
-  slaPresetId     String
-  ativo           Boolean  @default(true)
-  createdAt       DateTime @default(now())
+  id                String   @id @default(cuid())
+  nome              String
+  categoria         String
+  textoOrientacao   String?
+  slaPresetId       String
+  ativo             Boolean  @default(true)
+  // Alguns serviços não têm relação com um pedido específico (ex.: alteração
+  // de dados cadastrais, análise de crédito) — abrir chamado neles não pede
+  // número de pedido, e o pedido é gravado com número "0".
+  exigeNumeroPedido Boolean  @default(true)
+  createdAt         DateTime @default(now())
 
   slaPreset SlaPreset @relation(fields: [slaPresetId], references: [id])
   chamados  Chamado[]

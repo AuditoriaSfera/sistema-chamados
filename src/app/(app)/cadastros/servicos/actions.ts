@@ -71,6 +71,7 @@ const updateServicoSchema = z.object({
   categoria: z.enum(CATEGORIAS_SERVICO),
   textoOrientacao: z.string().optional(),
   slaPresetId: z.string().min(1),
+  exigeNumeroPedido: z.boolean(),
 });
 
 export async function updateServico(
@@ -84,6 +85,7 @@ export async function updateServico(
     categoria: formData.get("categoria"),
     textoOrientacao: formData.get("textoOrientacao") || undefined,
     slaPresetId: formData.get("slaPresetId"),
+    exigeNumeroPedido: formData.get("exigeNumeroPedido") === "on",
   });
   if (!parsed.success) return { error: "Preencha os campos obrigatórios corretamente." };
 
