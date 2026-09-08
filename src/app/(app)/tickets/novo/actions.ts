@@ -70,9 +70,18 @@ export async function createChamado(
     if (err) return { error: err };
   }
 
+  // Número de pedido pode se repetir de propósito (ex.: placeholder "000000"
+  // quando o atendente não tem o número real) — nesse caso não é o "mesmo
+  // pedido" só porque o número bate, então sempre grava o nome/código de
+  // revendedor recém-digitado em vez de manter o que já estava salvo. Sem
+  // isso, um chamado novo ficava silenciosamente com os dados de revendedor
+  // de quem abriu o primeiro chamado com aquele número.
   const pedido = await prisma.pedido.upsert({
     where: { numero: data.numeroPedido },
-    update: {},
+    update: {
+      nomeCliente: data.nomeCliente,
+      codigoRevendedor: data.codigoRevendedor,
+    },
     create: {
       numero: data.numeroPedido,
       pdvId: data.pdvId,
