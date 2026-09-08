@@ -143,6 +143,12 @@ export default async function TicketsPage({
           slaPreset: true,
           abertoPor: true,
           responsavel: true,
+          statusHistoricos: {
+            where: { status: "CANCELADO" },
+            orderBy: { createdAt: "desc" },
+            take: 1,
+            select: { usuarioId: true },
+          },
         },
       }),
       prisma.pdv.findMany({ orderBy: { codigo: "asc" } }),
@@ -368,6 +374,10 @@ export default async function TicketsPage({
                 const conclusao = c.finalizadoEm ? tempoConclusaoChamado(c, pdvCalendar) : null;
                 const alerta = classificarAlertaVencimento(c, config.alertaVencimentoHoras, pdvCalendar);
                 const foraDoPrazo = classificarCumprimentoSla(c) === "vencido";
+                const canceladoPeloProprio =
+                  c.status === "CANCELADO" &&
+                  !c.responsavelId &&
+                  c.statusHistoricos[0]?.usuarioId === c.abertoPorId;
 
                 return (
                   <TableRow
@@ -455,9 +465,13 @@ export default async function TicketsPage({
                       )}
                     </TableCell>
                     <TableCell className="text-center">
-                      {c.responsavelId ? (
+                      {c.responsavelId || canceladoPeloProprio ? (
                         <span
-                          title={`Assumido por ${c.responsavel?.nome ?? "alguém"}`}
+                          title={
+                            canceladoPeloProprio
+                              ? "Cancelado pelo próprio solicitante, sem ninguém assumir"
+                              : `Assumido por ${c.responsavel?.nome ?? "alguém"}`
+                          }
                           className="inline-flex items-center justify-center text-emerald-600 dark:text-emerald-400"
                         >
                           <UserCheck className="size-4" />
@@ -467,8 +481,12 @@ export default async function TicketsPage({
                       )}
                     </TableCell>
                     <TableCell className="text-center text-sm">
-                      {c.responsavel?.nome ?? (
-                        <span className="text-muted-foreground">sem responsável</span>
+                      {canceladoPeloProprio ? (
+                        <span className="text-muted-foreground">Cancelado pelo próprio usuário</span>
+                      ) : (
+                        c.responsavel?.nome ?? (
+                          <span className="text-muted-foreground">sem responsável</span>
+                        )
                       )}
                     </TableCell>
                     <TableCell className="text-center">
