@@ -21,9 +21,11 @@ const schema = z.object({
   servicoId: z.string().min(1),
   pdvId: z.string().min(1),
   // Validado condicionalmente depois de saber se o serviço exige pedido —
-  // serviço que não exige (Servico.exigeNumeroPedido) grava "0" direto,
-  // então aqui só passa o que veio, sem exigir formato.
-  numeroPedido: z.string().optional().default(""),
+  // serviço que não exige (Servico.exigeNumeroPedido) grava "0" direto, então
+  // aqui só passa o que veio, sem exigir formato. .nullish() é necessário
+  // porque o campo some do formulário nesse caso: formData.get(...) volta
+  // null (não undefined), que .optional() sozinho rejeita.
+  numeroPedido: z.string().nullish().transform((v) => v ?? ""),
   nomeCliente: z.string().min(1).transform(capitalizarNome),
   codigoRevendedor: z
     .string()
