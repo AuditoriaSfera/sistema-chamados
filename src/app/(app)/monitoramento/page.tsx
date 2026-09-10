@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/session";
-import { buildChamadoWhere, SEM_RESPONSAVEL_VALUE } from "@/lib/tickets";
+import { buildChamadoWhere, formatarNumeroChamado, SEM_RESPONSAVEL_VALUE } from "@/lib/tickets";
 import { getVisiblePdvIds } from "@/lib/permissions";
 import { DateRangeFilter } from "@/components/date-range-filter";
 import {
@@ -22,7 +22,7 @@ import { HorizontalBar } from "@/components/horizontal-bar";
 import { MultiSelectFilter } from "@/components/multi-select-filter";
 import { corDotClasses, type ColorKey } from "@/lib/color-palette";
 import { fmtHoras } from "@/lib/sla-format";
-import type { PdvCalendar } from "@/lib/business-calendar";
+import { businessMinutesBetween, type PdvCalendar } from "@/lib/business-calendar";
 import { cn } from "@/lib/utils";
 import {
   CalendarPlus,
@@ -264,6 +264,24 @@ export default async function MonitoramentoPage({
     1,
     ...tempoResolucaoPorPdv.map((v) => v.tempoMedioResolucao!.totalHoras)
   );
+
+  const agora = new Date();
+  const statusInfoMap = new Map(statusesAtivos.map((s) => [s.id, { nome: s.nome, cor: s.cor }]));
+  const pendentesTempoAberto = filtrarPorPdv("pendentesPdv")
+    .filter((c) => !STATUS_FINAIS.includes(c.status))
+    .map((c) => {
+      const corridoHoras = (agora.getTime() - c.createdAt.getTime()) / 3_600_000;
+      const cal = calendarioPorPdv.get(c.pdv.id);
+      return {
+        id: c.id,
+        numero: c.numero,
+        pdvCodigo: c.pdv.codigo,
+        status: statusInfoMap.get(c.status) ?? { nome: c.status, cor: "slate" },
+        corridoHoras,
+        utilHoras: cal ? businessMinutesBetween(c.createdAt, agora, cal) / 60 : corridoHoras,
+      };
+    })
+    .sort((a, b) => b.corridoHoras - a.corridoHoras);
 
   const cards = [
     {
@@ -830,6 +848,75 @@ export default async function MonitoramentoPage({
             <p className="text-sm text-muted-foreground">
               Nenhum chamado finalizado no escopo pra calcular tempo de resolução.
             </p>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card className="col-span-3">
+        <CardHeader className="flex flex-row items-center justify-between gap-2.5">
+          <div className="flex items-center gap-2.5">
+            <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-amber-500/15 text-amber-600 dark:text-amber-400">
+              <Timer className="size-4" />
+            </span>
+            <div>
+              <CardTitle className="text-base">Chamados pendentes — tempo aberto</CardTitle>
+              <p className="text-xs text-muted-foreground">
+                {pendentesTempoAberto.length} chamado(s) pendente(s)
+              </p>
+            </div>
+          </div>
+          <MultiSelectFilter
+            paramName="pendentesPdv"
+            label="PDV"
+            options={pdvsNoEscopo.map((pdv) => ({ value: pdv.id, label: pdv.codigo }))}
+          />
+        </CardHeader>
+        <CardContent>
+          {pendentesTempoAberto.length > 0 ? (
+            <div className="max-h-96 overflow-y-auto">
+              <table className="w-full text-sm">
+                <thead className="sticky top-0 bg-card text-xs text-muted-foreground">
+                  <tr className="border-b">
+                    <th className="py-1.5 pr-2 text-left font-medium">Chamado</th>
+                    <th className="py-1.5 pr-2 text-left font-medium">PDV</th>
+                    <th className="py-1.5 pr-2 text-left font-medium">Status</th>
+                    <th className="py-1.5 pr-2 text-right font-medium">Aberto há (corrido)</th>
+                    <th className="py-1.5 text-right font-medium">Aberto há (útil)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pendentesTempoAberto.map((c) => (
+                    <tr key={c.id} className="border-b last:border-0">
+                      <td className="py-1.5 pr-2">
+                        <Link
+                          href={`/tickets/${c.id}`}
+                          className="font-medium hover:underline"
+                        >
+                          {formatarNumeroChamado(c.numero)}
+                        </Link>
+                      </td>
+                      <td className="py-1.5 pr-2">{c.pdvCodigo}</td>
+                      <td className="py-1.5 pr-2">
+                        <span className="inline-flex items-center gap-1.5">
+                          <span
+                            className={`inline-block size-2 rounded-full ${corDotClasses(c.status.cor)}`}
+                          />
+                          {c.status.nome}
+                        </span>
+                      </td>
+                      <td className="py-1.5 pr-2 text-right text-muted-foreground">
+                        {fmtHoras(c.corridoHoras)}
+                      </td>
+                      <td className="py-1.5 text-right text-muted-foreground">
+                        {fmtHoras(c.utilHoras)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">Nenhum chamado pendente no escopo.</p>
           )}
         </CardContent>
       </Card>
