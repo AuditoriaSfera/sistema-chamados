@@ -145,11 +145,12 @@ export function buildChamadoWhere(
     const numeroBuscado = parseInt(sp.numero.replace(/\D/g, ""), 10);
     if (!Number.isNaN(numeroBuscado)) where.numero = numeroBuscado;
   }
-  if (sp.pedido || sp.codigoRevendedor) {
+  if (sp.pedido || sp.codigoRevendedor || sp.revendedor) {
     where.pedido = {
       is: {
         ...(sp.pedido ? { numero: { contains: sp.pedido } } : {}),
         ...(sp.codigoRevendedor ? { codigoRevendedor: { contains: sp.codigoRevendedor } } : {}),
+        ...(sp.revendedor ? { nomeCliente: { contains: sp.revendedor, mode: "insensitive" } } : {}),
       },
     };
   }

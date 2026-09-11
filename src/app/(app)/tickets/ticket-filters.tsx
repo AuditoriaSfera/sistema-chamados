@@ -3,6 +3,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { DateRangeFilter } from "@/components/date-range-filter";
+import { SearchFilter } from "@/components/search-filter";
 
 const CAMPOS_PROPRIOS = ["numero", "pedido", "codigoRevendedor"];
 
@@ -38,6 +39,14 @@ export function TicketFilters({
               placeholder="Ex: 6544"
               defaultValue={searchParams.pedido ?? ""}
               className="w-32 placeholder:text-muted-foreground/40"
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs text-muted-foreground">Nome do revendedor</label>
+            <SearchFilter
+              paramName="revendedor"
+              placeholder="Buscar por nome..."
+              className="w-56"
             />
           </div>
           <div className="space-y-1">
