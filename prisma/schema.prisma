@@ -148,7 +148,13 @@ model UsuarioPdv {
 
 model Pedido {
   id               String   @id @default(cuid())
-  numero           String   @unique
+  // Único só entre pedidos reais — chamado de serviço sem exigência de pedido
+  // (Servico.exigeNumeroPedido = false) grava "0" e cada um cria seu próprio
+  // registro, sem reaproveitar; senão o nome/código de revendedor de um
+  // chamado sobrescrevia o de outro totalmente diferente que só coincidia no
+  // "0". A unicidade de verdade (índice parcial "numero <> '0'") é imposta
+  // via migração, não dá pra expressar no @@unique do Prisma.
+  numero           String
   pdvId            String
   nomeCliente      String
   codigoRevendedor String
@@ -156,6 +162,8 @@ model Pedido {
 
   pdv      Pdv       @relation(fields: [pdvId], references: [id])
   chamados Chamado[]
+
+  @@index([numero])
 }
 
 model Servico {

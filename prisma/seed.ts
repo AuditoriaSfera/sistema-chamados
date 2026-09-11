@@ -53,24 +53,26 @@ async function main() {
     });
   }
 
-  await Promise.all(
-    [
-      { numero: "PED-0001", pdv: 0, cliente: "Revendedor Alpha", codigoRevendedor: "REV-0001" },
-      { numero: "PED-0002", pdv: 1, cliente: "Revendedor Beta", codigoRevendedor: "REV-0002" },
-      { numero: "PED-0003", pdv: 2, cliente: "Revendedor Gama", codigoRevendedor: "REV-0003" },
-    ].map((p) =>
-      prisma.pedido.upsert({
-        where: { numero: p.numero },
-        update: {},
-        create: {
+  for (const p of [
+    { numero: "PED-0001", pdv: 0, cliente: "Revendedor Alpha", codigoRevendedor: "REV-0001" },
+    { numero: "PED-0002", pdv: 1, cliente: "Revendedor Beta", codigoRevendedor: "REV-0002" },
+    { numero: "PED-0003", pdv: 2, cliente: "Revendedor Gama", codigoRevendedor: "REV-0003" },
+  ]) {
+    // Pedido.numero não é mais @unique no schema (só "0" pode se repetir,
+    // via índice parcial na migração), então upsert por numero não dá mais
+    // pra usar aqui — mesmo padrão findFirst+create do restante do app.
+    const existente = await prisma.pedido.findFirst({ where: { numero: p.numero } });
+    if (!existente) {
+      await prisma.pedido.create({
+        data: {
           numero: p.numero,
           pdvId: pdvs[p.pdv].id,
           nomeCliente: p.cliente,
           codigoRevendedor: p.codigoRevendedor,
         },
-      })
-    )
-  );
+      });
+    }
+  }
 
   const statusSeed = [
     { id: "ABERTO", nome: "Aberto", cor: "blue" },
