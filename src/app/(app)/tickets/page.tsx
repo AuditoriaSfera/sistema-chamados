@@ -427,7 +427,14 @@ export default async function TicketsPage({
                       <p>{c.pdv.codigo}</p>
                       <p>{c.pdv.nome}</p>
                     </TableCell>
-                    <TableCell className="text-center text-sm">{c.servico.nome}</TableCell>
+                    <TableCell
+                      className={cn(
+                        "text-center text-sm",
+                        !c.servico.exigeNumeroPedido && "text-blue-600 dark:text-blue-400"
+                      )}
+                    >
+                      {c.servico.nome}
+                    </TableCell>
                     <TableCell className="text-center text-sm">{c.pedido.nomeCliente}</TableCell>
                     <TableCell className="text-center text-sm">{c.pedido.codigoRevendedor}</TableCell>
                     <TableCell className="text-center text-sm">{c.pedido.numero}</TableCell>
