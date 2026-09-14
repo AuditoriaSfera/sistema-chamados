@@ -84,17 +84,22 @@ export async function createChamado(
 
   let pedido;
   if (servico.exigeNumeroPedido) {
-    // Número de pedido pode se repetir de propósito (ex.: placeholder
-    // "000000" quando o atendente não tem o número real) — nesse caso não é
-    // o "mesmo pedido" só porque o número bate, então sempre grava o
-    // nome/código de revendedor recém-digitado em vez de manter o que já
-    // estava salvo. Sem isso, um chamado novo ficava silenciosamente com os
-    // dados de revendedor de quem abriu o primeiro chamado com aquele número.
-    const existente = await prisma.pedido.findFirst({ where: { numero: numeroPedido } });
+    // Número de pedido é único por PDV, não globalmente — o mesmo número
+    // pode existir em PDVs diferentes de propósito (pedidos diferentes, cada
+    // loja com o seu, que só coincidem no número). Por isso a busca já leva
+    // o PDV em conta: mesmo número em outro PDV não é "o mesmo pedido", cria
+    // um registro novo em vez de bloquear ou de reaproveitar o de outra loja.
+    //
+    // Dentro do mesmo PDV, o número também pode se repetir de propósito (ex.:
+    // placeholder "000000" quando o atendente não tem o número real) — nesse
+    // caso sempre grava o nome/código de revendedor recém-digitado em vez de
+    // manter o que já estava salvo, senão um chamado novo ficava
+    // silenciosamente com os dados de revendedor de quem abriu o primeiro
+    // chamado com aquele número.
+    const existente = await prisma.pedido.findFirst({
+      where: { numero: numeroPedido, pdvId: data.pdvId },
+    });
     if (existente) {
-      if (existente.pdvId !== data.pdvId) {
-        return { error: "Esse número de pedido já existe vinculado a outro PDV." };
-      }
       pedido = await prisma.pedido.update({
         where: { id: existente.id },
         data: { nomeCliente: data.nomeCliente, codigoRevendedor: data.codigoRevendedor },
