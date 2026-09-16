@@ -241,7 +241,20 @@ export async function changeStatus(
     chamado.abertoPorId === user.id;
   const isCancelamentoQualquer = novoStatus === "CANCELADO" && canCancelOrReopenAny(user);
 
-  if (!isCancelamentoProprio && !isCancelamentoQualquer && !canChangeStatus(user)) {
+  // Contestar um status com pausa de SLA ativa (ex.: "Resolvido (ressalvas)")
+  // é aberto a qualquer perfil com acesso ao chamado, de propósito: a pausa
+  // existe pra dar um respiro no atendimento, não pra travar o SLA sem
+  // resolver de verdade — quem abriu o chamado (ou qualquer um que o
+  // enxergue) precisa poder derrubar isso sem depender de quem tem
+  // permissão de alterar status. canAccessChamado já foi checado acima.
+  const isContestacaoNaoResolvido = novoStatus === "EM_ANDAMENTO" && chamado.pausaSlaDesde !== null;
+
+  if (
+    !isCancelamentoProprio &&
+    !isCancelamentoQualquer &&
+    !isContestacaoNaoResolvido &&
+    !canChangeStatus(user)
+  ) {
     return { error: "Seu perfil não pode alterar o status deste chamado." };
   }
 

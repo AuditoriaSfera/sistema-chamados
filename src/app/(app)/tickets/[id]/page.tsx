@@ -214,12 +214,11 @@ export default async function ChamadoDetailPage({
           </Card>
         )}
 
+        {chamado.pausaSlaDesde && <MarcarNaoResolvidoButton chamadoId={chamado.id} />}
+
         {canChangeStatus(user) ? (
           chamado.responsavelId ? (
-            <>
-              {chamado.pausaSlaDesde && <MarcarNaoResolvidoButton chamadoId={chamado.id} />}
-              <StatusPanel chamadoId={chamado.id} statusAtual={chamado.status} statuses={statusesAtivos} />
-            </>
+            <StatusPanel chamadoId={chamado.id} statusAtual={chamado.status} statuses={statusesAtivos} />
           ) : (
             <p className="text-sm text-muted-foreground">
               Assuma o chamado antes de alterar o status.
