@@ -55,7 +55,7 @@ import {
 import type { PdvCalendar } from "@/lib/business-calendar";
 import { fmtHoras } from "@/lib/sla-format";
 import { formatarDataHora } from "@/lib/datas";
-import { formatarNumeroChamado } from "@/lib/tickets";
+import { formatarNumeroChamado, slaVencimentoEfetivo } from "@/lib/tickets";
 
 export default async function RelatoriosPage({
   searchParams,
@@ -81,6 +81,7 @@ export default async function RelatoriosPage({
         createdAt: true,
         finalizadoEm: true,
         slaVencimentoEm: true,
+        pausaSlaDesde: true,
         motivoReabertura: true,
         pdv: { select: { id: true, codigo: true, nome: true } },
         servico: { select: { id: true, nome: true } },
@@ -97,7 +98,7 @@ export default async function RelatoriosPage({
     prisma.status.findMany(),
   ]);
 
-  const rows = chamados as unknown as ChamadoReportRow[];
+  const chamadosBrutos = chamados as unknown as (ChamadoReportRow & { pausaSlaDesde: Date | null })[];
 
   const visiblePdvIds = getVisiblePdvIds(user);
   const pdvsNoEscopo = todosPdvs.filter((p) => visiblePdvIds.includes(p.id));
@@ -108,8 +109,9 @@ export default async function RelatoriosPage({
 
   const statusMap = new Map(statuses.map((s) => [s.id, s.nome]));
   const statusLabel = (status: string) => statusMap.get(status) ?? status;
+  const statusPausaMap = new Map(statuses.map((s) => [s.id, s.pausaSlaDiasUteis]));
 
-  const pdvIdsComChamado = [...new Set(rows.map((c) => c.pdv.id))];
+  const pdvIdsComChamado = [...new Set(chamadosBrutos.map((c) => c.pdv.id))];
   const [horariosPorPdv, feriadosPorPdv] = pdvIdsComChamado.length
     ? await Promise.all([
         prisma.pdvHorario.findMany({ where: { pdvId: { in: pdvIdsComChamado } } }),
@@ -125,6 +127,19 @@ export default async function RelatoriosPage({
       },
     ])
   );
+  // slaVencimentoEm já sai ajustado pela pausa de SLA do status atual (ex.:
+  // "Resolvido (ressalvas)") antes de qualquer classificação abaixo — ver
+  // slaVencimentoEfetivo em src/lib/tickets.ts.
+  const agoraParaPausaSla = new Date();
+  const rows: ChamadoReportRow[] = chamadosBrutos.map((c) => ({
+    ...c,
+    slaVencimentoEm: slaVencimentoEfetivo(
+      c,
+      statusPausaMap.get(c.status),
+      agoraParaPausaSla,
+      calendarioPorPdv.get(c.pdv.id) ?? { horarios: [], feriados: [] }
+    ),
+  }));
 
   const sla = slaStats(rows);
   const tempoMedio = tempoMedioResolucaoGeral(rows, calendarioPorPdv);

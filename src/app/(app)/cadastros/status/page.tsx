@@ -107,6 +107,13 @@ export default async function StatusPage({
                       />
                       {s.nome}
                     </Badge>
+                    {s.pausaSlaDiasUteis && (
+                      <p className="mt-1 text-[11px] text-muted-foreground">
+                        Congela o SLA por {s.pausaSlaDiasUteis} dia
+                        {s.pausaSlaDiasUteis === 1 ? "" : "s"} útil
+                        {s.pausaSlaDiasUteis === 1 ? "" : "eis"} ao ser definido.
+                      </p>
+                    )}
                   </TableCell>
                   <TableCell className="text-center">{s.fixo ? "Sim" : "—"}</TableCell>
                   <TableCell className="text-center">

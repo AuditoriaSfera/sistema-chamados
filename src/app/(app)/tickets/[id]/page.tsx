@@ -7,7 +7,8 @@ import { formatarDataHora } from "@/lib/datas";
 import { canAccessChamado, canCancelOrReopenAny, canChangeStatus } from "@/lib/permissions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SlaBadge, StatusBadge } from "@/lib/ticket-badges";
-import { formatarNumeroChamado } from "@/lib/tickets";
+import { formatarNumeroChamado, slaVencimentoEfetivo } from "@/lib/tickets";
+import type { PdvCalendar } from "@/lib/business-calendar";
 import { classificarSla } from "@/lib/reports";
 import { formatarDuracaoSla, formatarPrazoRelativo, formatarResultadoSla } from "@/lib/sla-format";
 import { cn } from "@/lib/utils";
@@ -57,7 +58,19 @@ export default async function ChamadoDetailPage({
   const statusMap = new Map(statuses.map((s) => [s.id, s]));
   const statusInfo = (chave: string) => statusMap.get(chave) ?? { nome: chave, cor: "slate" };
   const statusesAtivos = statuses.filter((s) => s.ativo);
-  const alertaSla = classificarSla(chamado);
+
+  const [horariosPdv, feriadosPdv] = await Promise.all([
+    prisma.pdvHorario.findMany({ where: { pdvId: chamado.pdvId } }),
+    prisma.feriado.findMany({ where: { pdvId: chamado.pdvId } }),
+  ]);
+  const pdvCalendar: PdvCalendar = { horarios: horariosPdv, feriados: feriadosPdv.map((f) => f.data) };
+  const slaVencimentoAjustado = slaVencimentoEfetivo(
+    chamado,
+    statusMap.get(chamado.status)?.pausaSlaDiasUteis,
+    new Date(),
+    pdvCalendar
+  );
+  const alertaSla = classificarSla({ ...chamado, slaVencimentoEm: slaVencimentoAjustado });
 
   return (
     <div className="grid grid-cols-3 gap-6">
@@ -78,7 +91,7 @@ export default async function ChamadoDetailPage({
             <SlaBadge nome={chamado.slaPreset.nome} cor={chamado.slaPreset.cor} />
             <span className="text-sm text-muted-foreground">
               {formatarDuracaoSla(chamado.slaPreset.duracao, chamado.slaPreset.unidade)}
-              {chamado.slaVencimentoEm && alertaSla && (
+              {slaVencimentoAjustado && alertaSla && (
                 <>
                   {" · "}
                   <span
@@ -87,21 +100,21 @@ export default async function ChamadoDetailPage({
                       alertaSla === "risco" && "font-medium text-amber-600 dark:text-amber-400"
                     )}
                   >
-                    {formatarPrazoRelativo(chamado.slaVencimentoEm)}
+                    {formatarPrazoRelativo(slaVencimentoAjustado)}
                   </span>
                 </>
               )}
-              {chamado.status === "FINALIZADO" && chamado.finalizadoEm && chamado.slaVencimentoEm && (
+              {chamado.status === "FINALIZADO" && chamado.finalizadoEm && slaVencimentoAjustado && (
                 <>
                   {" · "}
                   <span
                     className={cn(
-                      chamado.finalizadoEm > chamado.slaVencimentoEm
+                      chamado.finalizadoEm > slaVencimentoAjustado
                         ? "font-medium text-destructive"
                         : "text-emerald-600 dark:text-emerald-400"
                     )}
                   >
-                    {formatarResultadoSla(chamado.finalizadoEm, chamado.slaVencimentoEm)}
+                    {formatarResultadoSla(chamado.finalizadoEm, slaVencimentoAjustado)}
                   </span>
                 </>
               )}

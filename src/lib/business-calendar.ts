@@ -235,3 +235,36 @@ export function diasUteisDesdeAbertura(from: Date, agora: Date, cal: PdvCalendar
 
   return dias;
 }
+
+/** Mesmo instante do dia seguinte (hora/minuto preservados), no fuso de Brasília. */
+function addOneDayPreservingTime(date: Date): Date {
+  const { year, month, day, hour, minute } = getZonedParts(date, FUSO);
+  const amanha = new Date(Date.UTC(year, month - 1, day + 1));
+  return zonedTimeToUtc(amanha.getUTCFullYear(), amanha.getUTCMonth() + 1, amanha.getUTCDate(), hour, minute, FUSO);
+}
+
+/**
+ * Soma `dias` dias úteis a `from`, na mesma regra de isDiaUtilParaContagemDeDias
+ * (pula sábado/domingo/feriado, ignora horário cadastrado do PDV) — o inverso
+ * de diasUteisDesdeAbertura(): em vez de contar dias já passados, avança pra
+ * frente até completar `dias` dias úteis, preservando a hora do dia de `from`.
+ * Usada pra calcular até quando uma pausa de SLA (ex.: status "Resolvido
+ * (ressalvas)") vale, em src/lib/tickets.ts.
+ */
+export function addDiasUteis(from: Date, dias: number, cal: PdvCalendar): Date {
+  let cursor = from;
+  let restantes = dias;
+
+  let iteracoes = 0;
+  const MAX_ITERACOES = 3650;
+
+  while (restantes > 0) {
+    iteracoes++;
+    if (iteracoes > MAX_ITERACOES) return cursor;
+
+    cursor = addOneDayPreservingTime(cursor);
+    if (isDiaUtilParaContagemDeDias(cursor, cal)) restantes--;
+  }
+
+  return cursor;
+}

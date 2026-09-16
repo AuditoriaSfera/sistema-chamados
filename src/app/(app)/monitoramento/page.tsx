@@ -1,7 +1,12 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/session";
-import { buildChamadoWhere, formatarNumeroChamado, SEM_RESPONSAVEL_VALUE } from "@/lib/tickets";
+import {
+  buildChamadoWhere,
+  formatarNumeroChamado,
+  slaVencimentoEfetivo,
+  SEM_RESPONSAVEL_VALUE,
+} from "@/lib/tickets";
 import { getVisiblePdvIds } from "@/lib/permissions";
 import { DateRangeFilter } from "@/components/date-range-filter";
 import {
@@ -93,6 +98,7 @@ export default async function MonitoramentoPage({
         createdAt: true,
         finalizadoEm: true,
         slaVencimentoEm: true,
+        pausaSlaDesde: true,
         motivoReabertura: true,
         pdv: { select: { id: true, codigo: true, nome: true } },
         servico: { select: { id: true, nome: true } },
@@ -109,7 +115,40 @@ export default async function MonitoramentoPage({
     prisma.perfilAcesso.findMany(),
   ]);
 
-  const rows = chamados as unknown as ChamadoReportRow[];
+  const chamadosBrutos = chamados as unknown as (ChamadoReportRow & { pausaSlaDesde: Date | null })[];
+
+  // Calendário e o mapa de pausa de SLA por status precisam existir ANTES de
+  // qualquer classificação (vencidos/risco/SLA por PDV etc. logo abaixo), pra
+  // que `rows` já entre com o slaVencimentoEm ajustado pela pausa (ex.:
+  // "Resolvido (ressalvas)") em todo o resto da página — ver
+  // slaVencimentoEfetivo em src/lib/tickets.ts.
+  const agora = new Date();
+  const statusPausaMap = new Map(statusesAtivos.map((s) => [s.id, s.pausaSlaDiasUteis]));
+  const pdvIdsComChamado = [...new Set(chamadosBrutos.map((c) => c.pdv.id))];
+  const [horariosPorPdv, feriadosPorPdv] = pdvIdsComChamado.length
+    ? await Promise.all([
+        prisma.pdvHorario.findMany({ where: { pdvId: { in: pdvIdsComChamado } } }),
+        prisma.feriado.findMany({ where: { pdvId: { in: pdvIdsComChamado } } }),
+      ])
+    : [[], []];
+  const calendarioPorPdv: CalendarioPorPdv = new Map<string, PdvCalendar>(
+    pdvIdsComChamado.map((pdvId) => [
+      pdvId,
+      {
+        horarios: horariosPorPdv.filter((h) => h.pdvId === pdvId),
+        feriados: feriadosPorPdv.filter((f) => f.pdvId === pdvId).map((f) => f.data),
+      },
+    ])
+  );
+  const rows: ChamadoReportRow[] = chamadosBrutos.map((c) => ({
+    ...c,
+    slaVencimentoEm: slaVencimentoEfetivo(
+      c,
+      statusPausaMap.get(c.status),
+      agora,
+      calendarioPorPdv.get(c.pdv.id) ?? { horarios: [], feriados: [] }
+    ),
+  }));
 
   const visiblePdvIds = getVisiblePdvIds(user);
   const pdvsNoEscopo = todosPdvs.filter((pdv) => visiblePdvIds.includes(pdv.id));
@@ -246,22 +285,6 @@ export default async function MonitoramentoPage({
   }
   const slaPresetDist = Array.from(slaPresetDistMap.values()).sort((a, b) => b.total - a.total);
 
-  const pdvIdsComChamado = [...new Set(rows.map((c) => c.pdv.id))];
-  const [horariosPorPdv, feriadosPorPdv] = pdvIdsComChamado.length
-    ? await Promise.all([
-        prisma.pdvHorario.findMany({ where: { pdvId: { in: pdvIdsComChamado } } }),
-        prisma.feriado.findMany({ where: { pdvId: { in: pdvIdsComChamado } } }),
-      ])
-    : [[], []];
-  const calendarioPorPdv: CalendarioPorPdv = new Map<string, PdvCalendar>(
-    pdvIdsComChamado.map((pdvId) => [
-      pdvId,
-      {
-        horarios: horariosPorPdv.filter((h) => h.pdvId === pdvId),
-        feriados: feriadosPorPdv.filter((f) => f.pdvId === pdvId).map((f) => f.data),
-      },
-    ])
-  );
   const rowsParaTempoResolucao = filtrarPorPdv("tempoResPdv");
   const tempoResolucaoPorPdv = porPdv(rowsParaTempoResolucao, calendarioPorPdv)
     .filter((v) => v.tempoMedioResolucao !== null)
@@ -271,7 +294,6 @@ export default async function MonitoramentoPage({
     ...tempoResolucaoPorPdv.map((v) => v.tempoMedioResolucao!.totalHoras)
   );
 
-  const agora = new Date();
   const statusInfoMap = new Map(statusesAtivos.map((s) => [s.id, { nome: s.nome, cor: s.cor }]));
   const pendentesTempoAberto = filtrarPorPdv("pendentesPdv")
     .filter((c) => !STATUS_FINAIS.includes(c.status))

@@ -15,7 +15,11 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
-export function EditarStatusDialog({ status }: { status: { id: string; nome: string } }) {
+export function EditarStatusDialog({
+  status,
+}: {
+  status: { id: string; nome: string; pausaSlaDiasUteis: number | null };
+}) {
   const [open, setOpen] = useState(false);
   const [state, formAction, pending] = useActionState(updateStatusNome, undefined);
   const [processedState, setProcessedState] = useState(state);
@@ -39,6 +43,22 @@ export function EditarStatusDialog({ status }: { status: { id: string; nome: str
           <div className="space-y-1.5">
             <Label htmlFor="edit-nome">Nome</Label>
             <Input id="edit-nome" name="nome" defaultValue={status.nome} required />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="edit-pausaSlaDiasUteis">Congela o SLA por (dias úteis)</Label>
+            <Input
+              id="edit-pausaSlaDiasUteis"
+              name="pausaSlaDiasUteis"
+              type="number"
+              min={1}
+              defaultValue={status.pausaSlaDiasUteis ?? ""}
+              placeholder="Deixe em branco pra não congelar"
+            />
+            <p className="text-xs text-muted-foreground">
+              Se preenchido, mudar um chamado para este status congela o SLA por esse número de
+              dias úteis a partir da mudança. O SLA volta a contar sozinho depois do prazo, mesmo
+              sem trocar de status.
+            </p>
           </div>
           {state?.error && <p className="text-sm text-destructive">{state.error}</p>}
           <DialogFooter className="-mx-0 -mb-0 border-0 bg-transparent p-0 sm:justify-end">

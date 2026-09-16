@@ -35,6 +35,21 @@ export function NovoStatusDialog() {
             <Label htmlFor="nome">Nome</Label>
             <Input id="nome" name="nome" placeholder="Aguardando peça" required />
           </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="pausaSlaDiasUteis">Congela o SLA por (dias úteis)</Label>
+            <Input
+              id="pausaSlaDiasUteis"
+              name="pausaSlaDiasUteis"
+              type="number"
+              min={1}
+              placeholder="Deixe em branco pra não congelar"
+            />
+            <p className="text-xs text-muted-foreground">
+              Se preenchido, mudar um chamado para este status congela o SLA por esse número de
+              dias úteis a partir da mudança. O SLA volta a contar sozinho depois do prazo, mesmo
+              sem trocar de status.
+            </p>
+          </div>
           <p className="text-xs text-muted-foreground">A cor é atribuída automaticamente ao criar.</p>
           {state?.error && <p className="text-sm text-destructive">{state.error}</p>}
           <Button type="submit" disabled={pending}>

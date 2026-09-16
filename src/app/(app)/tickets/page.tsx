@@ -12,6 +12,7 @@ import {
   findIdsCanceladoPeloProprio,
   formatarNumeroChamado,
   hasDiasAbertoFilter,
+  slaVencimentoEfetivo,
   tempoConclusaoChamado,
   CANCELADO_PROPRIO_VALUE,
   SEM_RESPONSAVEL_VALUE,
@@ -452,8 +453,19 @@ export default async function TicketsPage({
                 const pdvCalendar = calendarioPorPdv.get(c.pdvId) ?? { horarios: [], feriados: [] };
                 const conclusao = c.finalizadoEm ? tempoConclusaoChamado(c, pdvCalendar) : null;
                 const diasAberto = diasAbertoDoChamado(c, agora, pdvCalendar);
-                const alerta = classificarAlertaVencimento(c, config.alertaVencimentoHoras, pdvCalendar);
-                const foraDoPrazo = classificarCumprimentoSla(c) === "vencido";
+                const slaVencimentoAjustado = slaVencimentoEfetivo(
+                  c,
+                  statusMap.get(c.status)?.pausaSlaDiasUteis,
+                  agora,
+                  pdvCalendar
+                );
+                const cComSlaAjustado = { ...c, slaVencimentoEm: slaVencimentoAjustado };
+                const alerta = classificarAlertaVencimento(
+                  cComSlaAjustado,
+                  config.alertaVencimentoHoras,
+                  pdvCalendar
+                );
+                const foraDoPrazo = classificarCumprimentoSla(cComSlaAjustado) === "vencido";
                 const canceladoPeloProprio =
                   c.status === "CANCELADO" &&
                   !c.responsavelId &&

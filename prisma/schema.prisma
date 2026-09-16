@@ -220,6 +220,11 @@ model Status {
   ordem     Int      @default(0)
   fixo      Boolean  @default(false)
   createdAt DateTime @default(now())
+  // Se definido, mudar um chamado PARA este status congela o SLA por esse
+  // número de dias úteis a partir do momento da mudança (ver
+  // Chamado.pausaSlaDesde e resolverPausaSlaNaTransicao em src/lib/tickets.ts).
+  // O SLA volta a contar sozinho depois do prazo, mesmo sem trocar de status.
+  pausaSlaDiasUteis Int?
 }
 
 // Singleton (1 linha fixa, id fixo "geral") — contador atômico do número sequencial do chamado
@@ -246,6 +251,11 @@ model Chamado {
   semOperadorNoMomento    Boolean   @default(false)
   chamadoPaiId            String?
   motivoReabertura        String?
+  // Momento em que entrou no status atual do banco, SÓ quando esse status tem
+  // pausaSlaDiasUteis configurado (ex.: "Resolvido (ressalvas)") — null fora
+  // dessa janela. Usado por slaVencimentoEfetivo()/resolverPausaSlaNaTransicao()
+  // em src/lib/tickets.ts pra congelar o SLA enquanto o chamado está pausado.
+  pausaSlaDesde           DateTime?
   createdAt               DateTime  @default(now())
   updatedAt                DateTime  @updatedAt
   finalizadoEm              DateTime?

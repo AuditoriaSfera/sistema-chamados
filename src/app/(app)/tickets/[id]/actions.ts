@@ -11,7 +11,7 @@ import {
 } from "@/lib/permissions";
 import { STATUS_FINAIS, ANEXO_MAX_QUANTIDADE } from "@/lib/constants";
 import { validateAnexo, saveAnexo, deleteAnexoFile } from "@/lib/uploads";
-import { computeSlaVencimento } from "@/lib/tickets";
+import { computeSlaVencimento, resolverPausaSlaNaTransicao } from "@/lib/tickets";
 
 const PRAZO_APAGAR_MS = 60_000;
 import { revalidatePath } from "next/cache";
@@ -260,11 +260,15 @@ export async function changeStatus(
     return { error: "Status inválido ou inativo." };
   }
 
+  const pausaSla = await resolverPausaSlaNaTransicao(chamado, statusDestino);
+
   await prisma.chamado.update({
     where: { id: chamadoId },
     data: {
       status: novoStatus,
       finalizadoEm: novoStatus === "FINALIZADO" ? new Date() : chamado.finalizadoEm,
+      slaVencimentoEm: pausaSla.slaVencimentoEm,
+      pausaSlaDesde: pausaSla.pausaSlaDesde,
     },
   });
 
@@ -344,6 +348,7 @@ export async function reabrirChamado(
     data: {
       status: "REABERTO",
       motivoReabertura: motivo,
+      pausaSlaDesde: null,
       ...(novoVencimento ? { slaVencimentoEm: novoVencimento } : {}),
     },
   });

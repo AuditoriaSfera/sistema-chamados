@@ -13,6 +13,23 @@ function corAleatoria() {
   return COLOR_PALETTE[Math.floor(Math.random() * COLOR_PALETTE.length)];
 }
 
+/**
+ * Vazio limpa a pausa (null); número inteiro positivo ativa a funcionalidade
+ * de congelar o SLA por esse tanto de dias úteis (ver slaVencimentoEfetivo
+ * em src/lib/tickets.ts).
+ */
+function parsePausaSlaDiasUteis(
+  raw: FormDataEntryValue | null
+): { value: number | null } | { error: string } {
+  const str = typeof raw === "string" ? raw.trim() : "";
+  if (!str) return { value: null };
+  const n = Number(str);
+  if (!Number.isInteger(n) || n < 1) {
+    return { error: "Dias úteis de pausa de SLA deve ser um número inteiro positivo." };
+  }
+  return { value: n };
+}
+
 export async function createStatus(
   _prevState: { error?: string } | undefined,
   formData: FormData
@@ -21,13 +38,16 @@ export async function createStatus(
   const parsed = statusSchema.safeParse({ nome: formData.get("nome") });
   if (!parsed.success) return { error: "Informe o nome do status." };
 
+  const pausaResult = parsePausaSlaDiasUteis(formData.get("pausaSlaDiasUteis"));
+  if ("error" in pausaResult) return { error: pausaResult.error };
+
   const existente = await prisma.status.findFirst({ where: { nome: parsed.data.nome } });
   if (existente) return { error: "Já existe um status com esse nome." };
 
   const total = await prisma.status.count();
   const cor = corAleatoria();
   const status = await prisma.status.create({
-    data: { nome: parsed.data.nome, cor, ordem: total },
+    data: { nome: parsed.data.nome, cor, ordem: total, pausaSlaDiasUteis: pausaResult.value },
   });
   await logAudit("Status", status.id, "CREATE", user.id, { nome: status.nome, cor });
   revalidatePath("/cadastros/status");
@@ -43,6 +63,9 @@ export async function updateStatusNome(
   const parsed = statusSchema.safeParse({ nome: formData.get("nome") });
   if (!parsed.success) return { error: "Informe o nome do status." };
 
+  const pausaResult = parsePausaSlaDiasUteis(formData.get("pausaSlaDiasUteis"));
+  if ("error" in pausaResult) return { error: pausaResult.error };
+
   const status = await prisma.status.findUnique({ where: { id: statusId } });
   if (!status) return { error: "Status não encontrado." };
   if (status.fixo) return { error: "Este status é fixo e não pode ser editado." };
@@ -52,8 +75,14 @@ export async function updateStatusNome(
   });
   if (duplicado) return { error: "Já existe um status com esse nome." };
 
-  await prisma.status.update({ where: { id: statusId }, data: { nome: parsed.data.nome } });
-  await logAudit("Status", statusId, "ATUALIZAR", user.id, parsed.data);
+  await prisma.status.update({
+    where: { id: statusId },
+    data: { nome: parsed.data.nome, pausaSlaDiasUteis: pausaResult.value },
+  });
+  await logAudit("Status", statusId, "ATUALIZAR", user.id, {
+    nome: parsed.data.nome,
+    pausaSlaDiasUteis: pausaResult.value,
+  });
   revalidatePath("/cadastros/status");
   return {};
 }

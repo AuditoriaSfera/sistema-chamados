@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   addBusinessMinutes,
+  addDiasUteis,
   businessMinutesBetween,
   diasUteisDesdeAbertura,
   parseLocalDate,
@@ -237,5 +238,36 @@ describe("diasUteisDesdeAbertura", () => {
     // sexta(abertura) -> sábado(não conta) -> domingo(não conta) -> segunda(1)
     // -> terça(2) -> quarta(3).
     expect(diasUteisDesdeAbertura(abertura, hoje, calComSabadoAberto)).toBe(3);
+  });
+});
+
+describe("addDiasUteis", () => {
+  it("soma dias úteis dentro da mesma semana, preservando a hora", () => {
+    const inicio = d("2026-08-12T14:00:00"); // quarta
+    const resultado = addDiasUteis(inicio, 2, calPadrao); // +quinta +sexta
+    expect(resultado).toEqual(d("2026-08-14T14:00:00"));
+  });
+
+  it("pula fim de semana ao somar, mesmo com PDV aberto aos sábados", () => {
+    const calComSabadoAberto: PdvCalendar = {
+      horarios: [
+        ...diasUteis,
+        { diaSemana: 6, abre: true, horarioInicio: "09:00", horarioFim: "13:00" },
+        { diaSemana: 0, abre: false, horarioInicio: "00:00", horarioFim: "00:00" },
+      ],
+      feriados: [],
+    };
+    const inicio = d("2026-08-14T16:57:00"); // sexta
+    // seg(1) ter(2) qua(3) qui(4) sex(5) -> 5 dias úteis depois é a sexta seguinte.
+    const resultado = addDiasUteis(inicio, 5, calComSabadoAberto);
+    expect(resultado).toEqual(d("2026-08-21T16:57:00"));
+  });
+
+  it("pula feriado cadastrado", () => {
+    const comFeriado: PdvCalendar = { ...calPadrao, feriados: [parseLocalDate("2026-08-13")] }; // quinta
+    const inicio = d("2026-08-12T10:00:00"); // quarta
+    // feriado na quinta não conta -> sexta(1) -> segunda(2)
+    const resultado = addDiasUteis(inicio, 2, comFeriado);
+    expect(resultado).toEqual(d("2026-08-17T10:00:00"));
   });
 });

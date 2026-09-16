@@ -5,6 +5,7 @@ import { getVisiblePdvIds, ticketScopeFilterForRequester, type SessionUser } fro
 import { duracaoSlaEmHoras } from "@/lib/sla-format";
 import {
   addBusinessMinutes,
+  addDiasUteis,
   businessMinutesBetween,
   diasUteisDesdeAbertura,
   parseLocalDate,
@@ -256,6 +257,75 @@ export async function computeSlaVencimento(
   if (!cal) return new Date(from.getTime() + prazoHoras * 60 * 60 * 1000);
 
   return addBusinessMinutes(from, prazoHoras * 60, cal);
+}
+
+/**
+ * Vencimento de SLA ajustado pela pausa do status atual (ex.: "Resolvido
+ * (ressalvas)"): enquanto `pausaSlaDesde` está gravado e o status atual tem
+ * `pausaSlaDiasUteis` configurado, o prazo fica congelado — soma-se ao
+ * vencimento gravado o tempo já decorrido desde que entrou nesse status, até
+ * o teto de N dias úteis; depois disso o deslocamento para de crescer e o
+ * prazo volta a correr normalmente, mesmo sem trocar de status.
+ *
+ * Usada só pra CLASSIFICAÇÃO/EXIBIÇÃO (badge, cor da linha, relatórios) — os
+ * atalhos de filtro por URL (foraPrazo=1, slaVencido=1 em buildChamadoWhere)
+ * comparam direto no banco e não passam por aqui, então um chamado pausado
+ * pode aparecer/sumir desses filtros com uma pequena defasagem até a próxima
+ * mudança de status gravar o ajuste de vez (ver resolverPausaSlaNaTransicao).
+ */
+export function slaVencimentoEfetivo(
+  chamado: { slaVencimentoEm: Date | null; pausaSlaDesde: Date | null },
+  pausaSlaDiasUteis: number | null | undefined,
+  agora: Date,
+  cal: PdvCalendar
+): Date | null {
+  if (!chamado.slaVencimentoEm) return null;
+  if (!chamado.pausaSlaDesde || !pausaSlaDiasUteis) return chamado.slaVencimentoEm;
+
+  const fimMaximoPausa = addDiasUteis(chamado.pausaSlaDesde, pausaSlaDiasUteis, cal);
+  const fimEfetivo = agora < fimMaximoPausa ? agora : fimMaximoPausa;
+  const duracaoPausaMs = Math.max(0, fimEfetivo.getTime() - chamado.pausaSlaDesde.getTime());
+  return new Date(chamado.slaVencimentoEm.getTime() + duracaoPausaMs);
+}
+
+/**
+ * Resolve pausaSlaDesde/slaVencimentoEm numa mudança de status: se o chamado
+ * estava pausado, grava de vez (capado no teto de dias úteis do status de
+ * origem) o deslocamento acumulado em slaVencimentoEm e encerra a pausa; se o
+ * status de destino tem pausaSlaDiasUteis configurado, abre uma pausa nova.
+ * Chamado por changeStatus em [id]/actions.ts, junto com o resto do update.
+ */
+export async function resolverPausaSlaNaTransicao(
+  chamado: { slaVencimentoEm: Date | null; pausaSlaDesde: Date | null; pdvId: string; status: string },
+  statusDestino: { pausaSlaDiasUteis: number | null }
+): Promise<{ slaVencimentoEm: Date | null; pausaSlaDesde: Date | null }> {
+  const agora = new Date();
+
+  if (!chamado.pausaSlaDesde) {
+    return {
+      slaVencimentoEm: chamado.slaVencimentoEm,
+      pausaSlaDesde: statusDestino.pausaSlaDiasUteis ? agora : null,
+    };
+  }
+
+  const statusOrigem = await prisma.status.findUnique({ where: { id: chamado.status } });
+  let slaVencimentoEm = chamado.slaVencimentoEm;
+  if (statusOrigem?.pausaSlaDiasUteis) {
+    const cal = await buildPdvCalendar(chamado.pdvId, chamado.pausaSlaDesde);
+    if (cal) {
+      slaVencimentoEm = slaVencimentoEfetivo(
+        { slaVencimentoEm, pausaSlaDesde: chamado.pausaSlaDesde },
+        statusOrigem.pausaSlaDiasUteis,
+        agora,
+        cal
+      );
+    }
+  }
+
+  return {
+    slaVencimentoEm,
+    pausaSlaDesde: statusDestino.pausaSlaDiasUteis ? agora : null,
+  };
 }
 
 export type AlertaVencimento = "risco" | "vencido" | null;
