@@ -95,7 +95,7 @@ export default async function MonitoramentoPage({
         slaVencimentoEm: true,
         motivoReabertura: true,
         pdv: { select: { id: true, codigo: true, nome: true } },
-        servico: { select: { nome: true } },
+        servico: { select: { id: true, nome: true } },
         pedido: { select: { numero: true, nomeCliente: true } },
         abertoPor: { select: { id: true, nome: true } },
         responsavel: { select: { id: true, nome: true } },
@@ -178,24 +178,28 @@ export default async function MonitoramentoPage({
   const maxRankingSolicitantes = Math.max(1, ...rankingSolicitantes.map((s) => s.total));
 
   const rowsParaServico = filtrarPorPdv("servicoPdv");
-  const servicosMap = new Map<string, number>();
+  const servicosMap = new Map<string, { nome: string; total: number }>();
   for (const c of rowsParaServico) {
-    servicosMap.set(c.servico.nome, (servicosMap.get(c.servico.nome) ?? 0) + 1);
+    const entry = servicosMap.get(c.servico.id) ?? { nome: c.servico.nome, total: 0 };
+    entry.total++;
+    servicosMap.set(c.servico.id, entry);
   }
   const rankingServicos = Array.from(servicosMap.entries())
-    .map(([servico, total]) => ({ servico, total }))
+    .map(([servicoId, v]) => ({ servicoId, servico: v.nome, total: v.total }))
     .sort((a, b) => b.total - a.total)
     .slice(0, 5);
   const maxRankingServicos = Math.max(1, ...rankingServicos.map((s) => s.total));
 
   const rowsParaOperador = filtrarPorPdv("operadorPdv");
-  const atendidosPorOperadorMap = new Map<string, number>();
+  const atendidosPorOperadorMap = new Map<string, { nome: string; total: number }>();
   for (const c of rowsParaOperador) {
     if (!c.responsavel) continue;
-    atendidosPorOperadorMap.set(c.responsavel.nome, (atendidosPorOperadorMap.get(c.responsavel.nome) ?? 0) + 1);
+    const entry = atendidosPorOperadorMap.get(c.responsavel.id) ?? { nome: c.responsavel.nome, total: 0 };
+    entry.total++;
+    atendidosPorOperadorMap.set(c.responsavel.id, entry);
   }
   const atendidosPorOperador = Array.from(atendidosPorOperadorMap.entries())
-    .map(([operador, total]) => ({ operador, total }))
+    .map(([operadorId, v]) => ({ operadorId, operador: v.nome, total: v.total }))
     .sort((a, b) => b.total - a.total);
   const maxAtendidos = Math.max(1, ...atendidosPorOperador.map((o) => o.total));
 
@@ -208,13 +212,14 @@ export default async function MonitoramentoPage({
   const rowsParaSla = pdvIdsFiltroSla
     ? rows.filter((c) => pdvIdsFiltroSla.includes(c.pdv.id))
     : rows;
-  const slaPorPdvMap = new Map<string, { pdvCodigo: string; noPrazo: number; foraPrazo: number }>();
+  const slaPorPdvMap = new Map<string, { pdvId: string; pdvCodigo: string; noPrazo: number; foraPrazo: number }>();
   for (const c of rowsParaSla) {
     if (!c.slaVencimentoEm || c.status === "CANCELADO") continue;
     const vencido = STATUS_FINAIS.includes(c.status)
       ? !(c.finalizadoEm && c.finalizadoEm <= c.slaVencimentoEm)
       : classificarSla(c) === "vencido";
     const entry = slaPorPdvMap.get(c.pdv.id) ?? {
+      pdvId: c.pdv.id,
       pdvCodigo: c.pdv.codigo,
       noPrazo: 0,
       foraPrazo: 0,
@@ -228,9 +233,10 @@ export default async function MonitoramentoPage({
     .sort((a, b) => b.total - a.total);
 
   const rowsParaSlaPreset = filtrarPorPdv("slaPresetPdv");
-  const slaPresetDistMap = new Map<string, { nome: string; cor: string; total: number }>();
+  const slaPresetDistMap = new Map<string, { slaPresetId: string; nome: string; cor: string; total: number }>();
   for (const c of rowsParaSlaPreset) {
     const entry = slaPresetDistMap.get(c.slaPreset.id) ?? {
+      slaPresetId: c.slaPreset.id,
       nome: c.slaPreset.nome,
       cor: c.slaPreset.cor,
       total: 0,
@@ -485,10 +491,13 @@ export default async function MonitoramentoPage({
                 <ul className="space-y-1.5 text-sm">
                   {statusDist.map(({ status, total }) => (
                     <li key={status.id} className="flex items-center justify-between">
-                      <span className="flex items-center gap-1.5">
+                      <Link
+                        href={`/tickets?status=${status.id}`}
+                        className="flex items-center gap-1.5 hover:underline"
+                      >
                         <span className={cn("inline-block size-2.5 rounded-full", corDotClasses(status.cor))} />
                         {status.nome}
-                      </span>
+                      </Link>
                       <span className="text-muted-foreground">{total}</span>
                     </li>
                   ))}
@@ -521,9 +530,11 @@ export default async function MonitoramentoPage({
           </CardHeader>
           <CardContent className="space-y-2.5">
             {rankingPdv.map((v) => (
-              <div key={v.pdvCodigo} className="space-y-1">
+              <div key={v.pdvId} className="space-y-1">
                 <div className="flex justify-between text-sm">
-                  <span>{v.pdvCodigo}</span>
+                  <Link href={`/tickets?pdvId=${v.pdvId}`} className="hover:underline">
+                    {v.pdvCodigo}
+                  </Link>
                   <span className="text-muted-foreground">{v.total}</span>
                 </div>
                 <HorizontalBar value={v.total} max={maxRankingPdv} color="violet" />
@@ -552,7 +563,9 @@ export default async function MonitoramentoPage({
             {rankingClientes.map((c) => (
               <div key={c.cliente} className="space-y-1">
                 <div className="flex justify-between text-sm">
-                  <span>{c.cliente}</span>
+                  <Link href={`/tickets?revendedor=${encodeURIComponent(c.cliente)}`} className="hover:underline">
+                    {c.cliente}
+                  </Link>
                   <span className="text-muted-foreground">{c.total}</span>
                 </div>
                 <HorizontalBar value={c.total} max={maxRankingClientes} color="pink" />
@@ -579,9 +592,11 @@ export default async function MonitoramentoPage({
           </CardHeader>
           <CardContent className="space-y-2.5">
             {atendidosPorOperador.map((o) => (
-              <div key={o.operador} className="space-y-1">
+              <div key={o.operadorId} className="space-y-1">
                 <div className="flex justify-between text-sm">
-                  <span>{o.operador}</span>
+                  <Link href={`/tickets?operadorId=${o.operadorId}`} className="hover:underline">
+                    {o.operador}
+                  </Link>
                   <span className="text-muted-foreground">{o.total}</span>
                 </div>
                 <HorizontalBar value={o.total} max={maxAtendidos} color="cyan" />
@@ -611,9 +626,11 @@ export default async function MonitoramentoPage({
           </CardHeader>
           <CardContent className="space-y-2.5">
             {rankingSolicitantes.map((s) => (
-              <div key={s.solicitante} className="space-y-1">
+              <div key={s.solicitanteId} className="space-y-1">
                 <div className="flex justify-between text-sm">
-                  <span>{s.solicitante}</span>
+                  <Link href={`/tickets?solicitanteId=${s.solicitanteId}`} className="hover:underline">
+                    {s.solicitante}
+                  </Link>
                   <span className="text-muted-foreground">{s.total}</span>
                 </div>
                 <HorizontalBar value={s.total} max={maxRankingSolicitantes} color="amber" />
@@ -643,9 +660,11 @@ export default async function MonitoramentoPage({
           </CardHeader>
           <CardContent className="space-y-2.5">
             {rankingServicos.map((s) => (
-              <div key={s.servico} className="space-y-1">
+              <div key={s.servicoId} className="space-y-1">
                 <div className="flex justify-between text-sm">
-                  <span>{s.servico}</span>
+                  <Link href={`/tickets?servicoId=${s.servicoId}`} className="hover:underline">
+                    {s.servico}
+                  </Link>
                   <span className="text-muted-foreground">{s.total}</span>
                 </div>
                 <HorizontalBar value={s.total} max={maxRankingServicos} color="blue" />
@@ -678,9 +697,11 @@ export default async function MonitoramentoPage({
           </CardHeader>
           <CardContent className="space-y-2.5">
             {reaberturaPorPdv.map((r) => (
-              <div key={r.pdvCodigo} className="space-y-1">
+              <div key={r.pdvId} className="space-y-1">
                 <div className="flex justify-between text-sm">
-                  <span>{r.pdvCodigo}</span>
+                  <Link href={`/tickets?pdvId=${r.pdvId}&reaberto=1`} className="hover:underline">
+                    {r.pdvCodigo}
+                  </Link>
                   <span className="text-muted-foreground">
                     {r.reabertos}/{r.total} ({r.taxaPct}%)
                   </span>
@@ -724,13 +745,20 @@ export default async function MonitoramentoPage({
             </div>
             {slaPorPdv.length > 0 ? (
               slaPorPdv.map((p) => (
-                <div key={p.pdvCodigo} className="space-y-1.5">
+                <div key={p.pdvId} className="space-y-1.5">
                   <div className="flex justify-between text-sm">
-                    <span>{p.pdvCodigo}</span>
+                    <Link href={`/tickets?pdvId=${p.pdvId}`} className="hover:underline">
+                      {p.pdvCodigo}
+                    </Link>
                     <span className="text-muted-foreground">
-                      {p.noPrazo} ({Math.round((p.noPrazo / p.total) * 100)}%) no prazo ·{" "}
-                      {p.foraPrazo} ({Math.round((p.foraPrazo / p.total) * 100)}%) fora do prazo ·{" "}
-                      {p.total} total
+                      <Link href={`/tickets?pdvId=${p.pdvId}&foraPrazo=0`} className="hover:underline">
+                        {p.noPrazo} ({Math.round((p.noPrazo / p.total) * 100)}%) no prazo
+                      </Link>{" "}
+                      ·{" "}
+                      <Link href={`/tickets?pdvId=${p.pdvId}&foraPrazo=1`} className="hover:underline">
+                        {p.foraPrazo} ({Math.round((p.foraPrazo / p.total) * 100)}%) fora do prazo
+                      </Link>{" "}
+                      · {p.total} total
                     </span>
                   </div>
                   <div className="flex h-2.5 w-full overflow-hidden rounded-full bg-muted">
@@ -785,10 +813,13 @@ export default async function MonitoramentoPage({
               <ul className="space-y-1.5 text-sm">
                 {slaPresetDist.map((s) => (
                   <li key={s.nome} className="flex items-center justify-between">
-                    <span className="flex items-center gap-1.5">
+                    <Link
+                      href={`/tickets?sla=${s.slaPresetId}`}
+                      className="flex items-center gap-1.5 hover:underline"
+                    >
                       <span className={cn("inline-block size-2.5 rounded-full", corDotClasses(s.cor))} />
                       {s.nome}
-                    </span>
+                    </Link>
                     <span className="text-muted-foreground">
                       {s.total} ({Math.round((s.total / rowsParaSlaPreset.length) * 100)}%)
                     </span>

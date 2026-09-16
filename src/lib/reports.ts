@@ -20,7 +20,7 @@ export type ChamadoReportRow = {
   slaVencimentoEm: Date | null;
   motivoReabertura: string | null;
   pdv: { id: string; codigo: string; nome: string };
-  servico: { nome: string };
+  servico: { id: string; nome: string };
   pedido: { numero: string; nomeCliente: string };
   abertoPor: { id: string; nome: string };
   responsavel: { id: string; nome: string } | null;
@@ -127,19 +127,20 @@ export function slaStats(chamados: ChamadoReportRow[], now: Date = new Date()) {
 }
 
 export function porPdv(chamados: ChamadoReportRow[], calendarios: CalendarioPorPdv) {
-  const grupos = new Map<string, ChamadoReportRow[]>();
+  const grupos = new Map<string, { pdvCodigo: string; lista: ChamadoReportRow[] }>();
   for (const c of chamados) {
-    const arr = grupos.get(c.pdv.codigo) ?? [];
-    arr.push(c);
-    grupos.set(c.pdv.codigo, arr);
+    const entry = grupos.get(c.pdv.id) ?? { pdvCodigo: c.pdv.codigo, lista: [] };
+    entry.lista.push(c);
+    grupos.set(c.pdv.id, entry);
   }
   return Array.from(grupos.entries())
-    .map(([pdvCodigo, lista]) => {
+    .map(([pdvId, { pdvCodigo, lista }]) => {
       const sla = slaStats(lista);
       const tempos = lista
         .map((c) => tempoResolucao(c, calendarios))
         .filter((v): v is Duracao => v !== null);
       return {
+        pdvId,
         pdvCodigo,
         total: lista.length,
         cumpridoPct: sla.cumpridoPct,
@@ -278,9 +279,14 @@ export function revendedoresComMaisChamados(chamados: ChamadoReportRow[], top = 
 }
 
 export function rankingChamadosPorSolicitante(chamados: ChamadoReportRow[], top = 15) {
-  const contagem = contarPor(chamados, (c) => c.abertoPor.nome);
-  return Array.from(contagem.entries())
-    .map(([solicitante, total]) => ({ solicitante, total }))
+  const grupos = new Map<string, { solicitante: string; total: number }>();
+  for (const c of chamados) {
+    const entry = grupos.get(c.abertoPor.id) ?? { solicitante: c.abertoPor.nome, total: 0 };
+    entry.total++;
+    grupos.set(c.abertoPor.id, entry);
+  }
+  return Array.from(grupos.entries())
+    .map(([solicitanteId, v]) => ({ solicitanteId, solicitante: v.solicitante, total: v.total }))
     .sort((a, b) => b.total - a.total)
     .slice(0, top);
 }
@@ -314,16 +320,17 @@ export function volumePorDiaSemana(chamados: ChamadoReportRow[]) {
 }
 
 export function taxaReaberturaPorPdv(chamados: ChamadoReportRow[]) {
-  const grupos = new Map<string, ChamadoReportRow[]>();
+  const grupos = new Map<string, { pdvCodigo: string; lista: ChamadoReportRow[] }>();
   for (const c of chamados) {
-    const arr = grupos.get(c.pdv.codigo) ?? [];
-    arr.push(c);
-    grupos.set(c.pdv.codigo, arr);
+    const entry = grupos.get(c.pdv.id) ?? { pdvCodigo: c.pdv.codigo, lista: [] };
+    entry.lista.push(c);
+    grupos.set(c.pdv.id, entry);
   }
   return Array.from(grupos.entries())
-    .map(([pdvCodigo, lista]) => {
+    .map(([pdvId, { pdvCodigo, lista }]) => {
       const reabertos = lista.filter((c) => c.motivoReabertura).length;
       return {
+        pdvId,
         pdvCodigo,
         total: lista.length,
         reabertos,

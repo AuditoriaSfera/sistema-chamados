@@ -85,7 +85,7 @@ export default async function RelatoriosPage({
         slaVencimentoEm: true,
         motivoReabertura: true,
         pdv: { select: { id: true, codigo: true, nome: true } },
-        servico: { select: { nome: true } },
+        servico: { select: { id: true, nome: true } },
         pedido: { select: { numero: true, nomeCliente: true } },
         abertoPor: { select: { id: true, nome: true } },
         responsavel: { select: { id: true, nome: true } },

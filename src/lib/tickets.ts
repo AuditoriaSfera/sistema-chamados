@@ -173,6 +173,9 @@ export function buildChamadoWhere(
     where.status = { notIn: STATUS_FINAIS };
     where.responsavelId = null;
   }
+  if (sp.reaberto === "1") {
+    where.motivoReabertura = { not: null };
+  }
 
   return where;
 }

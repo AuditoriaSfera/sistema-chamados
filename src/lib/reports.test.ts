@@ -22,7 +22,7 @@ function chamado(overrides: Partial<ChamadoReportRow>): ChamadoReportRow {
     slaVencimentoEm: null,
     motivoReabertura: null,
     pdv: { id: "pdv1", codigo: "PDV1", nome: "Loja 1" },
-    servico: { nome: "Atraso na entrega" },
+    servico: { id: "s1", nome: "Atraso na entrega" },
     pedido: { numero: "PED-1", nomeCliente: "Cliente A" },
     abertoPor: { id: "u1", nome: "Solicitante" },
     responsavel: null,
