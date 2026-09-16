@@ -1,13 +1,17 @@
 import Link from "next/link";
 import { MessageCircle, ArrowUp, ArrowDown, ArrowUpDown, ExternalLink, UserCheck, AlertTriangle } from "lucide-react";
 import { prisma } from "@/lib/db";
+import type { Prisma } from "@/generated/prisma/client";
 import { requireUser } from "@/lib/session";
 import {
   buildChamadoOrderBy,
   buildChamadoWhere,
   classificarAlertaVencimento,
+  diasAbertoDoChamado,
+  diasAbertoMatches,
   findIdsCanceladoPeloProprio,
   formatarNumeroChamado,
+  hasDiasAbertoFilter,
   tempoConclusaoChamado,
   CANCELADO_PROPRIO_VALUE,
   SEM_RESPONSAVEL_VALUE,
@@ -27,6 +31,7 @@ import { corBadgeClasses, corDotClasses } from "@/lib/color-palette";
 import { MultiSelectFilter } from "@/components/multi-select-filter";
 import { StickyHorizontalScrollbar } from "@/components/sticky-horizontal-scrollbar";
 import { TicketFilters } from "./ticket-filters";
+import { DiasAbertoFilter } from "./dias-aberto-filter";
 import { ClearNovoParam } from "@/components/clear-novo-param";
 import { ScrollToId } from "@/components/scroll-to-id";
 import { AutoRefresh } from "@/components/auto-refresh";
@@ -138,38 +143,95 @@ export default async function TicketsPage({
   // mostrarem a distribuição completa (respeitando os demais filtros ativos).
   const whereSemStatus = buildChamadoWhere(user, { ...sp, status: undefined }, extras);
 
-  const [total, chamados, pdvs, servicos, usuarios, statusCounts, slaPresets, statuses, perfis, config] =
-    await Promise.all([
+  const chamadoInclude = {
+    pedido: true,
+    pdv: true,
+    servico: true,
+    slaPreset: true,
+    abertoPor: true,
+    responsavel: true,
+    statusHistoricos: {
+      where: { status: "CANCELADO" },
+      orderBy: { createdAt: "desc" },
+      take: 1,
+      select: { usuarioId: true },
+    },
+  } satisfies Prisma.ChamadoInclude;
+  type ChamadoComRelacoes = Prisma.ChamadoGetPayload<{ include: typeof chamadoInclude }>;
+
+  const [pdvs, servicos, usuarios, statusCounts, slaPresets, statuses, perfis, config] = await Promise.all([
+    prisma.pdv.findMany({ orderBy: { codigo: "asc" } }),
+    prisma.servico.findMany({ orderBy: { nome: "asc" } }),
+    prisma.usuario.findMany({ orderBy: { nome: "asc" } }),
+    prisma.chamado.groupBy({ by: ["status"], where: whereSemStatus, _count: { _all: true } }),
+    prisma.slaPreset.findMany({ orderBy: { ordem: "asc" } }),
+    prisma.status.findMany({ orderBy: { ordem: "asc" } }),
+    prisma.perfilAcesso.findMany(),
+    prisma.configGeral.upsert({ where: { id: "geral" }, update: {}, create: { id: "geral" } }),
+  ]);
+
+  // Filtro/ordenação por "SLA em dias" depende de um cálculo por-PDV (calendário
+  // útil) que o Prisma não expressa em SQL — só dá pra aplicar em JS. Por isso,
+  // só quando um desses está ativo, a página troca a paginação no banco (rápida,
+  // via skip/take) por buscar TODO o conjunto que casa com os demais filtros,
+  // calcular os dias de cada um, filtrar/ordenar em memória e paginar o
+  // resultado já filtrado — o caminho comum (sem esse filtro) continua leve.
+  const agora = new Date();
+  const precisaBuscarTudo = hasDiasAbertoFilter(sp) || sp.sort === "diasAberto";
+
+  let total: number;
+  let chamados: ChamadoComRelacoes[];
+
+  if (precisaBuscarTudo) {
+    const todos = await prisma.chamado.findMany({ where, orderBy, include: chamadoInclude });
+
+    const pdvIdsTodos = [...new Set(todos.map((c) => c.pdvId))];
+    const [horariosTodos, feriadosTodos] = pdvIdsTodos.length
+      ? await Promise.all([
+          prisma.pdvHorario.findMany({ where: { pdvId: { in: pdvIdsTodos } } }),
+          prisma.feriado.findMany({ where: { pdvId: { in: pdvIdsTodos } } }),
+        ])
+      : [[], []];
+    const calendarioAmplo = new Map<string, PdvCalendar>(
+      pdvIdsTodos.map((pdvId) => [
+        pdvId,
+        {
+          horarios: horariosTodos.filter((h) => h.pdvId === pdvId),
+          feriados: feriadosTodos.filter((f) => f.pdvId === pdvId).map((f) => f.data),
+        },
+      ])
+    );
+
+    const comDias = todos.map((c) => ({
+      chamado: c,
+      dias: diasAbertoDoChamado(c, agora, calendarioAmplo.get(c.pdvId) ?? { horarios: [], feriados: [] }),
+    }));
+
+    const filtrados = hasDiasAbertoFilter(sp)
+      ? comDias.filter(({ dias }) => diasAbertoMatches(dias, sp))
+      : comDias;
+
+    if (sp.sort === "diasAberto") {
+      const direcao = sp.dir === "asc" ? 1 : -1;
+      filtrados.sort((a, b) => ((a.dias ?? -1) - (b.dias ?? -1)) * direcao);
+    }
+
+    total = filtrados.length;
+    chamados = filtrados
+      .slice((paginaAtual - 1) * PAGE_SIZE, paginaAtual * PAGE_SIZE)
+      .map(({ chamado }) => chamado);
+  } else {
+    [total, chamados] = await Promise.all([
       prisma.chamado.count({ where }),
       prisma.chamado.findMany({
         where,
         orderBy,
         skip: (paginaAtual - 1) * PAGE_SIZE,
         take: PAGE_SIZE,
-        include: {
-          pedido: true,
-          pdv: true,
-          servico: true,
-          slaPreset: true,
-          abertoPor: true,
-          responsavel: true,
-          statusHistoricos: {
-            where: { status: "CANCELADO" },
-            orderBy: { createdAt: "desc" },
-            take: 1,
-            select: { usuarioId: true },
-          },
-        },
+        include: chamadoInclude,
       }),
-      prisma.pdv.findMany({ orderBy: { codigo: "asc" } }),
-      prisma.servico.findMany({ orderBy: { nome: "asc" } }),
-      prisma.usuario.findMany({ orderBy: { nome: "asc" } }),
-      prisma.chamado.groupBy({ by: ["status"], where: whereSemStatus, _count: { _all: true } }),
-      prisma.slaPreset.findMany({ orderBy: { ordem: "asc" } }),
-      prisma.status.findMany({ orderBy: { ordem: "asc" } }),
-      prisma.perfilAcesso.findMany(),
-      prisma.configGeral.upsert({ where: { id: "geral" }, update: {}, create: { id: "geral" } }),
     ]);
+  }
 
   const visiblePdvIds = getVisiblePdvIds(user);
   const pdvsNoEscopo = pdvs.filter((p) => visiblePdvIds.includes(p.id));
@@ -324,6 +386,12 @@ export default async function TicketsPage({
                 </TableHead>
                 <TableHead className="text-center">
                   <div className="inline-flex items-center gap-1">
+                    <DiasAbertoFilter />
+                    <SortToggle sp={sp} campo="diasAberto" />
+                  </div>
+                </TableHead>
+                <TableHead className="text-center">
+                  <div className="inline-flex items-center gap-1">
                     <MultiSelectFilter
                       paramName="status"
                       label="Status"
@@ -383,6 +451,7 @@ export default async function TicketsPage({
                 const naoLidas = naoLidasPorChamado.get(c.id) ?? 0;
                 const pdvCalendar = calendarioPorPdv.get(c.pdvId) ?? { horarios: [], feriados: [] };
                 const conclusao = c.finalizadoEm ? tempoConclusaoChamado(c, pdvCalendar) : null;
+                const diasAberto = diasAbertoDoChamado(c, agora, pdvCalendar);
                 const alerta = classificarAlertaVencimento(c, config.alertaVencimentoHoras, pdvCalendar);
                 const foraDoPrazo = classificarCumprimentoSla(c) === "vencido";
                 const canceladoPeloProprio =
@@ -440,6 +509,15 @@ export default async function TicketsPage({
                     <TableCell className="text-center text-sm">{c.pedido.numero}</TableCell>
                     <TableCell className="text-center">
                       <SlaBadge nome={c.slaPreset.nome} cor={c.slaPreset.cor} />
+                    </TableCell>
+                    <TableCell className="text-center text-sm">
+                      {diasAberto === null ? (
+                        <span className="text-muted-foreground">—</span>
+                      ) : (
+                        <span>
+                          {diasAberto} dia{diasAberto === 1 ? "" : "s"}
+                        </span>
+                      )}
                     </TableCell>
                     <TableCell className="text-center">
                       <StatusBadge nome={statusInfo(c.status).nome} cor={statusInfo(c.status).cor} />
@@ -521,7 +599,7 @@ export default async function TicketsPage({
               })}
               {chamados.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={15} className="text-center text-sm text-muted-foreground py-6">
+                  <TableCell colSpan={16} className="text-center text-sm text-muted-foreground py-6">
                     Nenhum chamado encontrado com esses filtros.
                   </TableCell>
                 </TableRow>

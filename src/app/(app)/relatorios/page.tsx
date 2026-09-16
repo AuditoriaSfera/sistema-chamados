@@ -31,7 +31,6 @@ import {
   ArrowUp,
   ArrowDown,
   ArrowUpDown,
-  Timer,
   type LucideIcon,
 } from "lucide-react";
 import {
@@ -53,11 +52,10 @@ import {
   tempoResolucao,
   volumePorDiaSemana,
 } from "@/lib/reports";
-import { diasUteisDesdeAbertura, type PdvCalendar } from "@/lib/business-calendar";
+import type { PdvCalendar } from "@/lib/business-calendar";
 import { fmtHoras } from "@/lib/sla-format";
 import { formatarDataHora } from "@/lib/datas";
 import { formatarNumeroChamado } from "@/lib/tickets";
-import { STATUS_FINAIS } from "@/lib/constants";
 
 export default async function RelatoriosPage({
   searchParams,
@@ -141,21 +139,6 @@ export default async function RelatoriosPage({
   const rankingReaberturaSolicitantes = rankingReaberturaPorSolicitante(rows);
   const reaberturaPorPdv = taxaReaberturaPorPdv(rows);
   const diaSemana = volumePorDiaSemana(rows);
-
-  // Dias úteis em aberto: só faz sentido pra quem ainda não foi decidido —
-  // "hoje" como referência não tem significado pra um chamado já finalizado.
-  const agora = new Date();
-  const chamadosPendentesDiasAberto = rows
-    .filter((c) => !STATUS_FINAIS.includes(c.status))
-    .map((c) => ({
-      c,
-      dias: diasUteisDesdeAbertura(
-        c.createdAt,
-        agora,
-        calendarioPorPdv.get(c.pdv.id) ?? { horarios: [], feriados: [] }
-      ),
-    }))
-    .sort((a, b) => b.dias - a.dias);
 
   const CHAMADO_HEADERS = [
     "Chamado",
@@ -303,22 +286,6 @@ export default async function RelatoriosPage({
           fmtHoras(v.tempoMedioResolucao?.utilHoras ?? null),
         ])}
         csvFilename="chamados-por-pdv"
-        sp={sp}
-      />
-
-      <ReportCard
-        title="Chamados pendentes por dias em aberto"
-        icon={Timer}
-        color="amber"
-        headers={["PDV", "Chamado", "Serviço", "Aberto em", "Dias em aberto"]}
-        rows={chamadosPendentesDiasAberto.map(({ c, dias }) => [
-          c.pdv.codigo,
-          formatarNumeroChamado(c.numero),
-          c.servico.nome,
-          formatarDataHora(c.createdAt),
-          dias,
-        ])}
-        csvFilename="chamados-pendentes-dias-aberto"
         sp={sp}
       />
 

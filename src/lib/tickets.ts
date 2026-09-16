@@ -6,6 +6,7 @@ import { duracaoSlaEmHoras } from "@/lib/sla-format";
 import {
   addBusinessMinutes,
   businessMinutesBetween,
+  diasUteisDesdeAbertura,
   parseLocalDate,
   type PdvCalendar,
 } from "@/lib/business-calendar";
@@ -287,6 +288,52 @@ export function tempoConclusaoChamado(
   const totalHoras = (chamado.finalizadoEm.getTime() - chamado.createdAt.getTime()) / (1000 * 60 * 60);
   const horasUteis = businessMinutesBetween(chamado.createdAt, chamado.finalizadoEm, pdvCalendar) / 60;
   return { totalHoras, horasUteis };
+}
+
+/**
+ * "SLA em dias" de uma linha da listagem: dias úteis decorridos desde a
+ * abertura, mesma regra usada no relatório (hoje é Dia 0, pula fim de
+ * semana/feriado). Um chamado ainda aberto conta até agora; um finalizado
+ * fica congelado na data de finalização. Cancelado não grava uma data de
+ * fechamento própria (finalizadoEm só é setado ao FINALIZAR, de propósito —
+ * ver comentário em [id]/actions.ts), então não tem um "dias em aberto"
+ * confiável e a coluna mostra "—" pra ele.
+ */
+export function diasAbertoDoChamado(
+  chamado: { status: string; createdAt: Date; finalizadoEm: Date | null },
+  agora: Date,
+  cal: PdvCalendar
+): number | null {
+  if (chamado.status === "CANCELADO") return null;
+  const ate = chamado.status === "FINALIZADO" ? (chamado.finalizadoEm ?? agora) : agora;
+  return diasUteisDesdeAbertura(chamado.createdAt, ate, cal);
+}
+
+/** Se algum parâmetro do filtro de "SLA em dias" está ativo na URL. */
+export function hasDiasAbertoFilter(sp: Record<string, string | undefined>): boolean {
+  return !!(parseMulti(sp.dias)?.length || sp.diasGt || sp.diasDe || sp.diasAte);
+}
+
+/**
+ * Casa um valor de "dias em aberto" (já calculado por diasAbertoDoChamado)
+ * contra o filtro ativo na URL. `null` (chamado cancelado) nunca casa com
+ * filtro nenhum — só aparece quando não há filtro de dias selecionado.
+ */
+export function diasAbertoMatches(dias: number | null, sp: Record<string, string | undefined>): boolean {
+  if (dias === null) return false;
+
+  const exatos = parseMulti(sp.dias);
+  if (exatos?.length) return exatos.map(Number).includes(dias);
+
+  if (sp.diasGt) return dias > Number(sp.diasGt);
+
+  if (sp.diasDe || sp.diasAte) {
+    if (sp.diasDe && dias < Number(sp.diasDe)) return false;
+    if (sp.diasAte && dias > Number(sp.diasAte)) return false;
+    return true;
+  }
+
+  return true;
 }
 
 /**
