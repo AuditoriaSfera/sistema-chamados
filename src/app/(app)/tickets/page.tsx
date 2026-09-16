@@ -386,12 +386,6 @@ export default async function TicketsPage({
                 </TableHead>
                 <TableHead className="text-center">
                   <div className="inline-flex items-center gap-1">
-                    <DiasAbertoFilter />
-                    <SortToggle sp={sp} campo="diasAberto" />
-                  </div>
-                </TableHead>
-                <TableHead className="text-center">
-                  <div className="inline-flex items-center gap-1">
                     <MultiSelectFilter
                       paramName="status"
                       label="Status"
@@ -412,6 +406,12 @@ export default async function TicketsPage({
                   Finalizado em
                 </SortableHead>
                 <TableHead className="text-center">SLA (Total / Útil)</TableHead>
+                <TableHead className="text-center">
+                  <div className="inline-flex items-center gap-1">
+                    <DiasAbertoFilter />
+                    <SortToggle sp={sp} campo="diasAberto" />
+                  </div>
+                </TableHead>
                 <TableHead className="text-center">
                   <MultiSelectFilter
                     paramName="foraPrazo"
@@ -510,15 +510,6 @@ export default async function TicketsPage({
                     <TableCell className="text-center">
                       <SlaBadge nome={c.slaPreset.nome} cor={c.slaPreset.cor} />
                     </TableCell>
-                    <TableCell className="text-center text-sm">
-                      {diasAberto === null ? (
-                        <span className="text-muted-foreground">—</span>
-                      ) : (
-                        <span>
-                          {diasAberto} dia{diasAberto === 1 ? "" : "s"}
-                        </span>
-                      )}
-                    </TableCell>
                     <TableCell className="text-center">
                       <StatusBadge nome={statusInfo(c.status).nome} cor={statusInfo(c.status).cor} />
                     </TableCell>
@@ -548,6 +539,15 @@ export default async function TicketsPage({
                         </span>
                       ) : (
                         <span className="text-muted-foreground">—</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-center text-sm">
+                      {diasAberto === null ? (
+                        <span className="text-muted-foreground">—</span>
+                      ) : (
+                        <span>
+                          {diasAberto} dia{diasAberto === 1 ? "" : "s"}
+                        </span>
                       )}
                     </TableCell>
                     <TableCell className="text-center">

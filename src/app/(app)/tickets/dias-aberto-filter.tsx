@@ -6,7 +6,7 @@ import { Popover } from "@base-ui/react/popover";
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const DIAS_OPCOES = Array.from({ length: 31 }, (_, i) => i); // 0..30
+const DIAS_OPCOES = Array.from({ length: 15 }, (_, i) => i); // 0..14
 const MAIS_DE_OPCOES = [1, 2, 3];
 
 /**
