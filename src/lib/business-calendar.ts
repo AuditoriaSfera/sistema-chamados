@@ -188,3 +188,34 @@ export function businessMinutesBetween(from: Date, to: Date, cal: PdvCalendar): 
 
   return minutos;
 }
+
+/** Meia-noite (fuso de Brasília) do dia de `date`. */
+function inicioDoDia(date: Date): Date {
+  const { year, month, day } = getZonedParts(date, FUSO);
+  return zonedTimeToUtc(year, month, day, 0, 0, FUSO);
+}
+
+/**
+ * Dias úteis decorridos desde a abertura, contando "hoje" como o Dia 0 —
+ * cresce só quando o dia seguinte é útil (não é sábado, domingo nem feriado
+ * do PDV). Se `from` cair num fim de semana/feriado, a contagem só começa a
+ * subir no primeiro dia útil depois dele, não no dia seguinte a `from`.
+ */
+export function diasUteisDesdeAbertura(from: Date, agora: Date, cal: PdvCalendar): number {
+  const hojeInicio = inicioDoDia(agora);
+  let cursor = inicioDoDia(from);
+  let dias = 0;
+
+  let iteracoes = 0;
+  const MAX_ITERACOES = 3650;
+
+  while (cursor.getTime() < hojeInicio.getTime()) {
+    iteracoes++;
+    if (iteracoes > MAX_ITERACOES) return dias;
+
+    cursor = startOfNextDay(cursor);
+    if (isDiaUtil(cursor, cal)) dias++;
+  }
+
+  return dias;
+}

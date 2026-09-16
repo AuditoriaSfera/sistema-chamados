@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   addBusinessMinutes,
   businessMinutesBetween,
+  diasUteisDesdeAbertura,
   parseLocalDate,
   type PdvCalendar,
   type PdvDiaHorario,
@@ -173,5 +174,48 @@ describe("cálculo é imune ao fuso horário do runtime (não repete o bug do Ra
     const vencimento = addBusinessMinutes(from, 60, calSlaCritico);
     // Em Brasília ainda é quarta à noite (fora do expediente) — pula pra quinta 09:00 + 1h.
     expect(vencimento.toISOString()).toBe(new Date(Date.UTC(2026, 8, 3, 13, 0, 0)).toISOString());
+  });
+});
+
+describe("diasUteisDesdeAbertura", () => {
+  // 2026-08-12 é quarta-feira; 13=quinta, 14=sexta, 15=sábado, 16=domingo, 17=segunda, 18=terça.
+
+  it("aberto hoje é Dia 0", () => {
+    const abertura = d("2026-08-12T10:00:00");
+    const hoje = d("2026-08-12T23:00:00");
+    expect(diasUteisDesdeAbertura(abertura, hoje, calPadrao)).toBe(0);
+  });
+
+  it("aberto ontem (dia útil), hoje é 1 dia", () => {
+    const abertura = d("2026-08-12T10:00:00"); // quarta
+    const hoje = d("2026-08-13T09:00:00"); // quinta
+    expect(diasUteisDesdeAbertura(abertura, hoje, calPadrao)).toBe(1);
+  });
+
+  it("aberto sexta, hoje é segunda: fim de semana não conta, só 1 dia", () => {
+    const abertura = d("2026-08-14T10:00:00"); // sexta
+    const hoje = d("2026-08-17T09:00:00"); // segunda
+    expect(diasUteisDesdeAbertura(abertura, hoje, calPadrao)).toBe(1);
+  });
+
+  it("aberto no sábado, começa a contar na segunda como Dia 1", () => {
+    const abertura = d("2026-08-15T10:00:00"); // sábado
+    const hoje = d("2026-08-17T09:00:00"); // segunda
+    expect(diasUteisDesdeAbertura(abertura, hoje, calPadrao)).toBe(1);
+  });
+
+  it("aberto no sábado, segunda é feriado: começa a contar como 1 na terça", () => {
+    const comFeriado: PdvCalendar = { ...calPadrao, feriados: [parseLocalDate("2026-08-17")] };
+    const abertura = d("2026-08-15T10:00:00"); // sábado
+    const hojeSegunda = d("2026-08-17T09:00:00");
+    const hojeTerca = d("2026-08-18T09:00:00");
+    expect(diasUteisDesdeAbertura(abertura, hojeSegunda, comFeriado)).toBe(0);
+    expect(diasUteisDesdeAbertura(abertura, hojeTerca, comFeriado)).toBe(1);
+  });
+
+  it("conta cada dia útil intermediário (quarta até sexta = 2 dias)", () => {
+    const abertura = d("2026-08-12T10:00:00"); // quarta
+    const hoje = d("2026-08-14T09:00:00"); // sexta
+    expect(diasUteisDesdeAbertura(abertura, hoje, calPadrao)).toBe(2);
   });
 });
