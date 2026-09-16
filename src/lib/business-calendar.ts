@@ -196,6 +196,22 @@ function inicioDoDia(date: Date): Date {
 }
 
 /**
+ * Dia útil pra CONTAGEM de dias em aberto — diferente de isDiaUtil(): aqui
+ * sábado e domingo nunca contam, mesmo que o PDV tenha horário de
+ * funcionamento cadastrado pra esses dias (loja que abre sábado de manhã,
+ * por exemplo). isDiaUtil() respeita esse horário de propósito pros cálculos
+ * de prazo em HORAS (addBusinessMinutes/businessMinutesBetween); a regra de
+ * "dias em aberto" pedida é fim de semana/feriado nunca contam, ponto —
+ * independente do horário cadastrado.
+ */
+function isDiaUtilParaContagemDeDias(date: Date, cal: PdvCalendar): boolean {
+  const diaSemana = getZonedParts(date, FUSO).weekday;
+  if (diaSemana === 0 || diaSemana === 6) return false;
+  if (cal.feriados.some((f) => isMesmoDia(f, date))) return false;
+  return true;
+}
+
+/**
  * Dias úteis decorridos desde a abertura, contando "hoje" como o Dia 0 —
  * cresce só quando o dia seguinte é útil (não é sábado, domingo nem feriado
  * do PDV). Se `from` cair num fim de semana/feriado, a contagem só começa a
@@ -214,7 +230,7 @@ export function diasUteisDesdeAbertura(from: Date, agora: Date, cal: PdvCalendar
     if (iteracoes > MAX_ITERACOES) return dias;
 
     cursor = startOfNextDay(cursor);
-    if (isDiaUtil(cursor, cal)) dias++;
+    if (isDiaUtilParaContagemDeDias(cursor, cal)) dias++;
   }
 
   return dias;

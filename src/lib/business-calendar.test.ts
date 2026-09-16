@@ -218,4 +218,24 @@ describe("diasUteisDesdeAbertura", () => {
     const hoje = d("2026-08-14T09:00:00"); // sexta
     expect(diasUteisDesdeAbertura(abertura, hoje, calPadrao)).toBe(2);
   });
+
+  it("sábado nunca conta, mesmo quando o PDV tem horário cadastrado pra sábado", () => {
+    // Loja que abre sábado de manhã (caso real): isDiaUtil() consideraria o
+    // sábado útil pro cálculo de prazo em horas, mas a contagem de "dias em
+    // aberto" precisa ignorar esse horário e tratar sábado/domingo como
+    // sempre não-úteis.
+    const calComSabadoAberto: PdvCalendar = {
+      horarios: [
+        ...diasUteis,
+        { diaSemana: 6, abre: true, horarioInicio: "09:00", horarioFim: "13:00" }, // sábado
+        { diaSemana: 0, abre: false, horarioInicio: "00:00", horarioFim: "00:00" }, // domingo
+      ],
+      feriados: [],
+    };
+    const abertura = d("2026-08-14T16:57:00"); // sexta
+    const hoje = d("2026-08-19T11:01:00"); // quarta seguinte
+    // sexta(abertura) -> sábado(não conta) -> domingo(não conta) -> segunda(1)
+    // -> terça(2) -> quarta(3).
+    expect(diasUteisDesdeAbertura(abertura, hoje, calComSabadoAberto)).toBe(3);
+  });
 });
