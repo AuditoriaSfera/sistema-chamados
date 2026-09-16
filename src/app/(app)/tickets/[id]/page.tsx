@@ -17,6 +17,7 @@ import { StatusPanel } from "./status-panel";
 import { ReaberturaPanel } from "./reabertura-panel";
 import { AnexosPanel } from "./anexos-panel";
 import { AssumirButton } from "./assumir-button";
+import { MarcarNaoResolvidoButton } from "./marcar-nao-resolvido-button";
 import { ResponderSolicitanteForm } from "./responder-solicitante-form";
 
 export default async function ChamadoDetailPage({
@@ -215,7 +216,10 @@ export default async function ChamadoDetailPage({
 
         {canChangeStatus(user) ? (
           chamado.responsavelId ? (
-            <StatusPanel chamadoId={chamado.id} statusAtual={chamado.status} statuses={statusesAtivos} />
+            <>
+              {chamado.pausaSlaDesde && <MarcarNaoResolvidoButton chamadoId={chamado.id} />}
+              <StatusPanel chamadoId={chamado.id} statusAtual={chamado.status} statuses={statusesAtivos} />
+            </>
           ) : (
             <p className="text-sm text-muted-foreground">
               Assuma o chamado antes de alterar o status.
