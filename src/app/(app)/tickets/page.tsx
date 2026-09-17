@@ -103,6 +103,7 @@ function SortableHead({
   children: React.ReactNode;
 }) {
   const ativo = sp.sort === campo;
+  const Icone = ativo ? (sp.dir === "asc" ? ArrowUp : ArrowDown) : ArrowUpDown;
   return (
     <TableHead className="text-center">
       <Link
@@ -114,7 +115,7 @@ function SortableHead({
         )}
       >
         {children}
-        {ativo && <span className="text-xs">{sp.dir === "asc" ? "▲" : "▼"}</span>}
+        <Icone className="size-3.5" />
       </Link>
     </TableHead>
   );
