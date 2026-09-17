@@ -339,7 +339,7 @@ export default async function TicketsPage({
 
       <Card>
         <CardContent className="pt-6" id="tickets-table-wrap">
-          <Table className="text-xs [&_td]:text-xs [&_th]:h-7 [&_th]:bg-muted/50 [&_th]:text-[11px] [&_th]:font-semibold [&_th]:tracking-wide [&_th]:text-muted-foreground [&_th]:uppercase">
+          <Table className="text-xs [&_td]:text-xs [&_th]:h-10 [&_th]:bg-muted/50 [&_th]:text-[11px] [&_th]:font-semibold [&_th]:tracking-wide [&_th]:text-muted-foreground [&_th]:uppercase">
             <TableHeader>
               <TableRow>
                 <SortableHead sp={sp} campo="numero">
