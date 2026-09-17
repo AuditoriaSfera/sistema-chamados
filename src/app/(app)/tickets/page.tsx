@@ -345,18 +345,24 @@ export default async function TicketsPage({
                   Chamado
                 </SortableHead>
                 <TableHead className="text-center">
-                  <MultiSelectFilter
-                    paramName="solicitanteId"
-                    label="Aberto por"
-                    options={solicitantes.map((u) => ({ value: u.id, label: u.nome }))}
-                  />
+                  <div className="inline-flex items-center gap-1">
+                    <MultiSelectFilter
+                      paramName="solicitanteId"
+                      label="Aberto por"
+                      options={solicitantes.map((u) => ({ value: u.id, label: u.nome }))}
+                    />
+                    <SortToggle sp={sp} campo="solicitante" />
+                  </div>
                 </TableHead>
                 <TableHead className="text-center">
-                  <MultiSelectFilter
-                    paramName="pdvId"
-                    label="PDV"
-                    options={pdvsNoEscopo.map((p) => ({ value: p.id, label: `${p.codigo} — ${p.nome}` }))}
-                  />
+                  <div className="inline-flex items-center gap-1">
+                    <MultiSelectFilter
+                      paramName="pdvId"
+                      label="PDV"
+                      options={pdvsNoEscopo.map((p) => ({ value: p.id, label: `${p.codigo} — ${p.nome}` }))}
+                    />
+                    <SortToggle sp={sp} campo="pdv" />
+                  </div>
                 </TableHead>
                 <TableHead className="text-center">
                   <div className="inline-flex items-center gap-1">
@@ -368,9 +374,15 @@ export default async function TicketsPage({
                     <SortToggle sp={sp} campo="servico" />
                   </div>
                 </TableHead>
-                <TableHead className="text-center">Revendedor</TableHead>
-                <TableHead className="text-center">Código do revendedor</TableHead>
-                <TableHead className="text-center">Pedido</TableHead>
+                <SortableHead sp={sp} campo="revendedor">
+                  Revendedor
+                </SortableHead>
+                <SortableHead sp={sp} campo="codigoRevendedor">
+                  Código do revendedor
+                </SortableHead>
+                <SortableHead sp={sp} campo="pedido">
+                  Pedido
+                </SortableHead>
                 <TableHead className="text-center">
                   <div className="inline-flex items-center gap-1">
                     <MultiSelectFilter
@@ -434,15 +446,18 @@ export default async function TicketsPage({
                   />
                 </TableHead>
                 <TableHead className="text-center">
-                  <MultiSelectFilter
-                    paramName="operadorId"
-                    label="Responsável"
-                    options={[
-                      { value: SEM_RESPONSAVEL_VALUE, label: "Sem responsável" },
-                      { value: CANCELADO_PROPRIO_VALUE, label: "Cancelado pelo próprio usuário" },
-                      ...operadores.map((u) => ({ value: u.id, label: u.nome })),
-                    ]}
-                  />
+                  <div className="inline-flex items-center gap-1">
+                    <MultiSelectFilter
+                      paramName="operadorId"
+                      label="Responsável"
+                      options={[
+                        { value: SEM_RESPONSAVEL_VALUE, label: "Sem responsável" },
+                        { value: CANCELADO_PROPRIO_VALUE, label: "Cancelado pelo próprio usuário" },
+                        ...operadores.map((u) => ({ value: u.id, label: u.nome })),
+                      ]}
+                    />
+                    <SortToggle sp={sp} campo="operador" />
+                  </div>
                 </TableHead>
                 <TableHead className="text-center">Abrir</TableHead>
               </TableRow>

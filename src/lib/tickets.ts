@@ -184,11 +184,17 @@ export function buildChamadoWhere(
 
 const CHAMADO_SORT_FIELDS = [
   "numero",
+  "solicitante",
+  "pdv",
   "servico",
+  "revendedor",
+  "codigoRevendedor",
+  "pedido",
   "sla",
   "status",
   "createdAt",
   "finalizadoEm",
+  "operador",
 ] as const;
 export type ChamadoSortField = (typeof CHAMADO_SORT_FIELDS)[number];
 
@@ -200,8 +206,14 @@ export function buildChamadoOrderBy(
     ? (sp.sort as ChamadoSortField)
     : "createdAt";
   const direcao = sp.dir === "asc" ? "asc" : "desc";
+  if (campo === "solicitante") return { abertoPor: { nome: direcao } };
+  if (campo === "pdv") return { pdv: { codigo: direcao } };
   if (campo === "servico") return { servico: { nome: direcao } };
+  if (campo === "revendedor") return { pedido: { nomeCliente: direcao } };
+  if (campo === "codigoRevendedor") return { pedido: { codigoRevendedor: direcao } };
+  if (campo === "pedido") return { pedido: { numero: direcao } };
   if (campo === "sla") return { slaPreset: { nome: direcao } };
+  if (campo === "operador") return { responsavel: { nome: direcao } };
   return { [campo]: direcao };
 }
 
