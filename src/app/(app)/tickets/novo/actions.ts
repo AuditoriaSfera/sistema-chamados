@@ -1,6 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/db";
+import { Prisma } from "@/generated/prisma/client";
 import { requireUser } from "@/lib/session";
 import { canOpenTicket } from "@/lib/permissions";
 import {
@@ -105,14 +106,35 @@ export async function createChamado(
         data: { nomeCliente: data.nomeCliente, codigoRevendedor: data.codigoRevendedor },
       });
     } else {
-      pedido = await prisma.pedido.create({
-        data: {
-          numero: numeroPedido,
-          pdvId: data.pdvId,
-          nomeCliente: data.nomeCliente,
-          codigoRevendedor: data.codigoRevendedor,
-        },
-      });
+      try {
+        pedido = await prisma.pedido.create({
+          data: {
+            numero: numeroPedido,
+            pdvId: data.pdvId,
+            nomeCliente: data.nomeCliente,
+            codigoRevendedor: data.codigoRevendedor,
+          },
+        });
+      } catch (e) {
+        // Corrida: dois chamados abertos quase juntos pro mesmo pedido no
+        // mesmo PDV — o findFirst acima não viu nada nos dois, mas entre um
+        // request e outro um já criou o registro, e o índice único parcial
+        // "Pedido_numero_key" (numero+pdvId) rejeita a segunda inserção com
+        // P2002. Em vez de estourar um erro 500 pro usuário, trata igual ao
+        // caminho de "já existe": busca o que o outro request acabou de criar
+        // e atualiza com os dados desta submissão.
+        if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
+          const concorrente = await prisma.pedido.findFirstOrThrow({
+            where: { numero: numeroPedido, pdvId: data.pdvId },
+          });
+          pedido = await prisma.pedido.update({
+            where: { id: concorrente.id },
+            data: { nomeCliente: data.nomeCliente, codigoRevendedor: data.codigoRevendedor },
+          });
+        } else {
+          throw e;
+        }
+      }
     }
   } else {
     // "0" nunca é reaproveitado entre chamados — cada um recebe seu próprio
