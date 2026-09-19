@@ -502,9 +502,10 @@ export default async function MonitoramentoPage({
               <>
                 <div className="flex h-3 w-full overflow-hidden rounded-full bg-muted">
                   {statusDist.map(({ status, total }) => (
-                    <div
+                    <Link
                       key={status.id}
-                      className={cn(corDotClasses(status.cor), "h-full")}
+                      href={`/tickets?status=${status.id}`}
+                      className={cn(corDotClasses(status.cor), "h-full transition-opacity hover:opacity-80")}
                       style={{ width: `${(total / chamadosParaStatus.length) * 100}%` }}
                       title={`${status.nome}: ${total}`}
                     />
@@ -512,15 +513,17 @@ export default async function MonitoramentoPage({
                 </div>
                 <ul className="space-y-1.5 text-sm">
                   {statusDist.map(({ status, total }) => (
-                    <li key={status.id} className="flex items-center justify-between">
+                    <li key={status.id}>
                       <Link
                         href={`/tickets?status=${status.id}`}
-                        className="flex items-center gap-1.5 hover:underline"
+                        className="-mx-1 flex items-center justify-between rounded-md p-1 transition-colors hover:bg-muted/50"
                       >
-                        <span className={cn("inline-block size-2.5 rounded-full", corDotClasses(status.cor))} />
-                        {status.nome}
+                        <span className="flex items-center gap-1.5">
+                          <span className={cn("inline-block size-2.5 rounded-full", corDotClasses(status.cor))} />
+                          {status.nome}
+                        </span>
+                        <span className="text-muted-foreground">{total}</span>
                       </Link>
-                      <span className="text-muted-foreground">{total}</span>
                     </li>
                   ))}
                 </ul>
@@ -552,15 +555,17 @@ export default async function MonitoramentoPage({
           </CardHeader>
           <CardContent className="space-y-2.5">
             {rankingPdv.map((v) => (
-              <div key={v.pdvId} className="space-y-1">
+              <Link
+                key={v.pdvId}
+                href={`/tickets?pdvId=${v.pdvId}`}
+                className="-mx-1 block space-y-1 rounded-md p-1 transition-colors hover:bg-muted/50"
+              >
                 <div className="flex justify-between text-sm">
-                  <Link href={`/tickets?pdvId=${v.pdvId}`} className="hover:underline">
-                    {v.pdvCodigo}
-                  </Link>
+                  <span>{v.pdvCodigo}</span>
                   <span className="text-muted-foreground">{v.total}</span>
                 </div>
                 <HorizontalBar value={v.total} max={maxRankingPdv} color="violet" />
-              </div>
+              </Link>
             ))}
           </CardContent>
         </Card>
@@ -583,15 +588,17 @@ export default async function MonitoramentoPage({
           </CardHeader>
           <CardContent className="space-y-2.5">
             {rankingClientes.map((c) => (
-              <div key={c.cliente} className="space-y-1">
+              <Link
+                key={c.cliente}
+                href={`/tickets?revendedor=${encodeURIComponent(c.cliente)}`}
+                className="-mx-1 block space-y-1 rounded-md p-1 transition-colors hover:bg-muted/50"
+              >
                 <div className="flex justify-between text-sm">
-                  <Link href={`/tickets?revendedor=${encodeURIComponent(c.cliente)}`} className="hover:underline">
-                    {c.cliente}
-                  </Link>
+                  <span>{c.cliente}</span>
                   <span className="text-muted-foreground">{c.total}</span>
                 </div>
                 <HorizontalBar value={c.total} max={maxRankingClientes} color="pink" />
-              </div>
+              </Link>
             ))}
           </CardContent>
         </Card>
@@ -614,15 +621,17 @@ export default async function MonitoramentoPage({
           </CardHeader>
           <CardContent className="space-y-2.5">
             {atendidosPorOperador.map((o) => (
-              <div key={o.operadorId} className="space-y-1">
+              <Link
+                key={o.operadorId}
+                href={`/tickets?operadorId=${o.operadorId}`}
+                className="-mx-1 block space-y-1 rounded-md p-1 transition-colors hover:bg-muted/50"
+              >
                 <div className="flex justify-between text-sm">
-                  <Link href={`/tickets?operadorId=${o.operadorId}`} className="hover:underline">
-                    {o.operador}
-                  </Link>
+                  <span>{o.operador}</span>
                   <span className="text-muted-foreground">{o.total}</span>
                 </div>
                 <HorizontalBar value={o.total} max={maxAtendidos} color="cyan" />
-              </div>
+              </Link>
             ))}
             {atendidosPorOperador.length === 0 && (
               <p className="text-sm text-muted-foreground">Nenhum chamado atribuído a um operador.</p>
@@ -648,15 +657,17 @@ export default async function MonitoramentoPage({
           </CardHeader>
           <CardContent className="space-y-2.5">
             {rankingSolicitantes.map((s) => (
-              <div key={s.solicitanteId} className="space-y-1">
+              <Link
+                key={s.solicitanteId}
+                href={`/tickets?solicitanteId=${s.solicitanteId}`}
+                className="-mx-1 block space-y-1 rounded-md p-1 transition-colors hover:bg-muted/50"
+              >
                 <div className="flex justify-between text-sm">
-                  <Link href={`/tickets?solicitanteId=${s.solicitanteId}`} className="hover:underline">
-                    {s.solicitante}
-                  </Link>
+                  <span>{s.solicitante}</span>
                   <span className="text-muted-foreground">{s.total}</span>
                 </div>
                 <HorizontalBar value={s.total} max={maxRankingSolicitantes} color="amber" />
-              </div>
+              </Link>
             ))}
             {rankingSolicitantes.length === 0 && (
               <p className="text-sm text-muted-foreground">Nenhum chamado no período/escopo.</p>
@@ -682,15 +693,17 @@ export default async function MonitoramentoPage({
           </CardHeader>
           <CardContent className="space-y-2.5">
             {rankingServicos.map((s) => (
-              <div key={s.servicoId} className="space-y-1">
+              <Link
+                key={s.servicoId}
+                href={`/tickets?servicoId=${s.servicoId}`}
+                className="-mx-1 block space-y-1 rounded-md p-1 transition-colors hover:bg-muted/50"
+              >
                 <div className="flex justify-between text-sm">
-                  <Link href={`/tickets?servicoId=${s.servicoId}`} className="hover:underline">
-                    {s.servico}
-                  </Link>
+                  <span>{s.servico}</span>
                   <span className="text-muted-foreground">{s.total}</span>
                 </div>
                 <HorizontalBar value={s.total} max={maxRankingServicos} color="blue" />
-              </div>
+              </Link>
             ))}
             {rankingServicos.length === 0 && (
               <p className="text-sm text-muted-foreground">Nenhum chamado no período/escopo.</p>
@@ -719,17 +732,19 @@ export default async function MonitoramentoPage({
           </CardHeader>
           <CardContent className="space-y-2.5">
             {reaberturaPorPdv.map((r) => (
-              <div key={r.pdvId} className="space-y-1">
+              <Link
+                key={r.pdvId}
+                href={`/tickets?pdvId=${r.pdvId}&reaberto=1`}
+                className="-mx-1 block space-y-1 rounded-md p-1 transition-colors hover:bg-muted/50"
+              >
                 <div className="flex justify-between text-sm">
-                  <Link href={`/tickets?pdvId=${r.pdvId}&reaberto=1`} className="hover:underline">
-                    {r.pdvCodigo}
-                  </Link>
+                  <span>{r.pdvCodigo}</span>
                   <span className="text-muted-foreground">
                     {r.reabertos}/{r.total} ({r.taxaPct}%)
                   </span>
                 </div>
                 <HorizontalBar value={r.taxaPct} max={100} color="amber" />
-              </div>
+              </Link>
             ))}
             {reaberturaPorPdv.length === 0 && (
               <p className="text-sm text-muted-foreground">Nenhum chamado no período/escopo.</p>
@@ -824,9 +839,10 @@ export default async function MonitoramentoPage({
             <>
               <div className="flex h-3 w-full overflow-hidden rounded-full bg-muted">
                 {slaPresetDist.map((s) => (
-                  <div
+                  <Link
                     key={s.nome}
-                    className={cn(corDotClasses(s.cor), "h-full")}
+                    href={`/tickets?sla=${s.slaPresetId}`}
+                    className={cn(corDotClasses(s.cor), "h-full transition-opacity hover:opacity-80")}
                     style={{ width: `${(s.total / rowsParaSlaPreset.length) * 100}%` }}
                     title={`${s.nome}: ${s.total}`}
                   />
@@ -834,17 +850,19 @@ export default async function MonitoramentoPage({
               </div>
               <ul className="space-y-1.5 text-sm">
                 {slaPresetDist.map((s) => (
-                  <li key={s.nome} className="flex items-center justify-between">
+                  <li key={s.nome}>
                     <Link
                       href={`/tickets?sla=${s.slaPresetId}`}
-                      className="flex items-center gap-1.5 hover:underline"
+                      className="-mx-1 flex items-center justify-between rounded-md p-1 transition-colors hover:bg-muted/50"
                     >
-                      <span className={cn("inline-block size-2.5 rounded-full", corDotClasses(s.cor))} />
-                      {s.nome}
+                      <span className="flex items-center gap-1.5">
+                        <span className={cn("inline-block size-2.5 rounded-full", corDotClasses(s.cor))} />
+                        {s.nome}
+                      </span>
+                      <span className="text-muted-foreground">
+                        {s.total} ({Math.round((s.total / rowsParaSlaPreset.length) * 100)}%)
+                      </span>
                     </Link>
-                    <span className="text-muted-foreground">
-                      {s.total} ({Math.round((s.total / rowsParaSlaPreset.length) * 100)}%)
-                    </span>
                   </li>
                 ))}
               </ul>
