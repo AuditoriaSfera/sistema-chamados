@@ -442,17 +442,20 @@ export default async function MonitoramentoPage({
           <CardContent className="space-y-3">
             {pdvStatsFiltrado.map((v) => (
               <div key={v.pdv.id} className="space-y-1">
-                <div className="flex items-center justify-between text-sm">
-                  <Link href={`/tickets?pdvId=${v.pdv.id}`} className="flex items-center gap-1.5 hover:underline">
+                <Link
+                  href={`/tickets?pdvId=${v.pdv.id}`}
+                  className="-mx-1 flex items-center justify-between rounded-md p-1 text-sm transition-colors hover:bg-muted/50"
+                >
+                  <span className="flex items-center gap-1.5">
                     <SlaDot cor={v.cor} />
                     {v.pdv.codigo}
-                  </Link>
+                  </span>
                   <span className="text-muted-foreground">
                     {v.total} chamado(s){v.vencidos > 0 && ` · ${v.vencidos} vencido(s)`}
                     {" · "}
                     {somaPdvStatsTotal > 0 ? Math.round((v.total / somaPdvStatsTotal) * 100) : 0}%
                   </span>
-                </div>
+                </Link>
                 {v.total > 0 ? (
                   <div className="h-2.5 w-full overflow-hidden rounded-full bg-muted">
                     <div
@@ -460,9 +463,10 @@ export default async function MonitoramentoPage({
                       style={{ width: `${(v.total / maxPdvStatsTotal) * 100}%` }}
                     >
                       {v.porStatus.map(({ status, total }) => (
-                        <div
+                        <Link
                           key={status.id}
-                          className={cn(corDotClasses(status.cor), "h-full")}
+                          href={`/tickets?pdvId=${v.pdv.id}&status=${status.id}`}
+                          className={cn(corDotClasses(status.cor), "h-full transition-opacity hover:opacity-80")}
                           style={{ width: `${(total / v.total) * 100}%` }}
                           title={`${status.nome}: ${total}`}
                         />
@@ -799,12 +803,16 @@ export default async function MonitoramentoPage({
                     </span>
                   </div>
                   <div className="flex h-2.5 w-full overflow-hidden rounded-full bg-muted">
-                    <div
-                      className="h-full bg-emerald-500"
+                    <Link
+                      href={`/tickets?pdvId=${p.pdvId}&foraPrazo=0`}
+                      title={`${p.pdvCodigo}: no prazo`}
+                      className="h-full bg-emerald-500 transition-opacity hover:opacity-80"
                       style={{ width: `${(p.noPrazo / p.total) * 100}%` }}
                     />
-                    <div
-                      className="h-full bg-red-500"
+                    <Link
+                      href={`/tickets?pdvId=${p.pdvId}&foraPrazo=1`}
+                      title={`${p.pdvCodigo}: fora do prazo`}
+                      className="h-full bg-red-500 transition-opacity hover:opacity-80"
                       style={{ width: `${(p.foraPrazo / p.total) * 100}%` }}
                     />
                   </div>
